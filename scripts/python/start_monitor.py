@@ -22,7 +22,7 @@ if __name__ == "__main__":
     
     if pm.positions:
         print('🔄 启动监控...')
-        print('   每 30 秒检查一次')
+        print('   每 5 秒检查一次')
         print('   按 Ctrl+C 停止')
         print()
         pm.monitor_loop()

@@ -11,21 +11,24 @@ import os
 from datetime import datetime
 from typing import Optional
 from dataclasses import dataclass, asdict
+from dotenv import load_dotenv
 from agents.polymarket.polymarket import Polymarket
 from agents.polymarket.gamma import GammaMarketClient
 
+# 加载 .env 配置（override=True 确保覆盖已有环境变量）
+load_dotenv(override=True)
 
 # ============================================================
-# 📋 配置参数 - 在这里修改
+# 📋 配置参数 - 从 .env 文件读取
 # ============================================================
 
 # 止盈止损设置
-TAKE_PROFIT_PCT = 0.20      # 止盈百分比: 0.20 = 涨 20% 卖出
-STOP_LOSS_PCT = 0.10        # 止损百分比: 0.10 = 跌 10% 卖出
+TAKE_PROFIT_PCT = float(os.getenv("TAKE_PROFIT_PCT", "0.20"))    # 止盈百分比
+STOP_LOSS_PCT = float(os.getenv("STOP_LOSS_PCT", "0.10"))        # 止损百分比
 
 # 监控设置
-MONITOR_INTERVAL = 30       # 检查间隔（秒）
-AUTO_EXECUTE = False        # 是否自动执行交易（True = 真实卖出！）
+MONITOR_INTERVAL = int(os.getenv("MONITOR_INTERVAL", "30"))      # 检查间隔（秒）
+AUTO_EXECUTE = os.getenv("AUTO_EXECUTE", "false").lower() == "true"  # 是否自动执行
 
 # 文件路径
 POSITIONS_FILE = os.path.join(os.path.dirname(__file__), "positions.json")
@@ -458,4 +461,3 @@ if __name__ == "__main__":
     print("   2. 买入后调用 pm.add_position() 添加持仓")
     print("   3. 调用 pm.monitor_loop() 启动监控")
     print()
-
