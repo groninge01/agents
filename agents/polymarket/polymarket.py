@@ -235,18 +235,30 @@ class Polymarket:
             market["clob_token_ids"] = token_id
         return market
 
-    def get_all_events(self) -> "list[SimpleEvent]":
+    def get_all_events(self, active_only: bool = True) -> "list[SimpleEvent]":
+        """获取所有事件，默认只获取活跃的、未关闭的事件"""
         events = []
-        res = httpx.get(self.gamma_events_endpoint)
+        
+        # 添加查询参数，只获取活跃的、未关闭的、未归档的事件
+        params = {}
+        if active_only:
+            params = {
+                "active": True,
+                "closed": False,
+                "archived": False,
+                "limit": 100,  # 增加限制以获取更多事件
+            }
+        
+        res = httpx.get(self.gamma_events_endpoint, params=params)
         if res.status_code == 200:
-            print(len(res.json()))
-            for event in res.json():
+            data = res.json()
+            print(f"获取到 {len(data)} 个事件")
+            for event in data:
                 try:
-                    print(1)
                     event_data = self.map_api_to_event(event)
                     events.append(SimpleEvent(**event_data))
                 except Exception as e:
-                    print(e)
+                    # 静默处理解析错误
                     pass
         return events
 
@@ -269,16 +281,29 @@ class Polymarket:
         }
 
     def filter_events_for_trading(
-        self, events: "list[SimpleEvent]"
+        self, events: "list[SimpleEvent]", ignore_restricted: bool = True
     ) -> "list[SimpleEvent]":
+        """
+        过滤可交易事件
+        
+        Args:
+            events: 事件列表
+            ignore_restricted: 是否忽略 restricted 标记（API 交易通常不受此限制）
+        """
         tradeable_events = []
         for event in events:
-            if (
+            # 基本条件：活跃、未关闭、未归档
+            is_tradeable = (
                 event.active
-                and not event.restricted
                 and not event.archived
                 and not event.closed
-            ):
+            )
+            
+            # 如果不忽略 restricted，则额外检查
+            if not ignore_restricted:
+                is_tradeable = is_tradeable and not event.restricted
+            
+            if is_tradeable:
                 tradeable_events.append(event)
         return tradeable_events
 
