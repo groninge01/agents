@@ -1,0 +1,14 @@
+[
+  {
+    "token_id": "50161564593820976965151793756719520393014318964839902082651564167544475366371",
+    "market_question": "Will Trump meet with Zelenskyy by December 31?",
+    "side": "Yes",
+    "buy_price": 0.242,
+    "quantity": 5.0,
+    "cost": 1.21,
+    "buy_time": "2025-12-03T22:05:31.974361",
+    "take_profit": 0.2904,
+    "stop_loss": 0.2178,
+    "status": "open"
+  }
+]
