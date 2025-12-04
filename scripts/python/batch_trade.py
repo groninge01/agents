@@ -4,9 +4,13 @@
 """
 
 import json
+import os
 import re
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 from agents.polymarket.gamma import GammaMarketClient
+
+load_dotenv()
 from agents.polymarket.polymarket import Polymarket
 from agents.application.executor import Executor
 from langchain_core.messages import HumanMessage
@@ -145,15 +149,12 @@ def execute_batch_trades(dry_run=True, amount_per_trade=1.0, num_trades=10):
     executor = Executor()
     
     # 检查余额
-    proxy_addr = '0x6187933A809D545fd317036fAE83689E5178edE5'
-    proxy_balance = polymarket.usdc.functions.balanceOf(proxy_addr).call()
-    proxy_usdc = float(proxy_balance / 10e5)
-    
-    print(f"\n💳 代理钱包余额: ${proxy_usdc:.2f}")
+    usdc_balance = polymarket.get_usdc_balance()
+    print(f"\n💳 钱包余额: ${usdc_balance:.2f}")
     
     total_needed = amount_per_trade * num_trades
-    if proxy_usdc < total_needed:
-        print(f"❌ 余额不足！需要 ${total_needed}，只有 ${proxy_usdc:.2f}")
+    if usdc_balance < total_needed:
+        print(f"❌ 余额不足！需要 ${total_needed}，只有 ${usdc_balance:.2f}")
         return
     
     # 1. 查找短期市场
@@ -202,17 +203,14 @@ def execute_batch_trades(dry_run=True, amount_per_trade=1.0, num_trades=10):
         print("=" * 70)
         print("\n要执行真实交易，请运行:")
         print("  python scripts/python/batch_trade.py --execute")
+        return trade_plan
     else:
         print("⚠️ 即将执行真实交易...")
         print("=" * 70)
         
-        confirm = input("\n确认执行? (输入 'YES' 确认): ")
-        if confirm != 'YES':
-            print("❌ 已取消")
-            return
-        
         print("\n🚀 开始执行交易...")
         
+        successful_trades = []
         for i, t in enumerate(trade_plan, 1):
             print(f"\n交易 {i}/{len(trade_plan)}: {t['question'][:40]}...")
             try:
@@ -226,15 +224,74 @@ def execute_batch_trades(dry_run=True, amount_per_trade=1.0, num_trades=10):
                 token_idx = 0 if t['side'] == 'Yes' else 1
                 token_id = token_ids[token_idx] if token_ids else None
                 
-                if token_id:
-                    # 执行市场订单
-                    # trade = polymarket.execute_market_order(...)
-                    print(f"   ✅ BUY {t['side']} ${amount_per_trade}")
-                else:
+                if not token_id:
                     print(f"   ❌ 无法获取 token_id")
+                    continue
+                
+                # 获取当前价格
+                orderbook = polymarket.client.get_order_book(token_id)
+                if orderbook and orderbook.asks:
+                    # 买入用 Ask 价格（最低卖单）
+                    best_ask = min(orderbook.asks, key=lambda x: float(x.price))
+                    buy_price = float(best_ask.price)
+                else:
+                    print(f"   ❌ 无法获取订单簿")
+                    continue
+                
+                # 计算数量 (确保金额 >= $1.01 以避免精度问题)
+                min_amount = max(amount_per_trade, 1.05)  # 至少 $1.05
+                quantity = min_amount / buy_price
+                quantity = round(quantity, 2)  # 保留2位小数
+                
+                print(f"   价格: ${buy_price:.4f}")
+                print(f"   数量: {quantity:.2f}")
+                
+                # 执行限价单
+                result = polymarket.execute_order(
+                    price=buy_price,
+                    size=quantity,
+                    side="BUY",
+                    token_id=token_id
+                )
+                
+                # 提取订单 ID
+                order_id = result.get('orderID', result.get('id', '')) if isinstance(result, dict) else str(result)
+                
+                print(f"   ✅ BUY {t['side']} ${amount_per_trade} 成功!")
+                print(f"   订单ID: {order_id[:20]}..." if len(order_id) > 20 else f"   订单ID: {order_id}")
+                
+                # 记录成功的交易
+                actual_cost = buy_price * quantity  # 实际成本 = 价格 × 数量
+                successful_trades.append({
+                    'question': t['question'],
+                    'side': t['side'],
+                    'token_id': token_id,
+                    'buy_price': buy_price,
+                    'quantity': quantity,
+                    'cost': actual_cost,
+                    'ai_prob': t['ai_prob'],
+                    'order_id': order_id
+                })
                     
             except Exception as e:
                 print(f"   ❌ 错误: {e}")
+        
+        # 将成功的交易添加到持仓监控
+        if successful_trades:
+            print("\n📋 添加到持仓监控...")
+            from scripts.python.position_monitor import PositionManager
+            pm = PositionManager()
+            for trade in successful_trades:
+                pm.add_position(
+                    token_id=trade['token_id'],
+                    market_question=trade['question'],
+                    side=trade['side'],
+                    buy_price=trade['buy_price'],
+                    quantity=trade['quantity'],
+                    cost=trade['cost'],
+                    order_id=trade.get('order_id', '')
+                )
+                print(f"   ✅ 已添加: {trade['question'][:40]}...")
         
         print("\n" + "=" * 70)
         print("✅ 批量交易完成！")
