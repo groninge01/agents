@@ -1,8 +1,10 @@
 import httpx
 import json
+import time
 
 from agents.polymarket.polymarket import Polymarket
 from agents.utils.objects import Market, PolymarketEvent, ClobReward, Tag
+from agents.utils.api_logger import log_http_request, log_http_response
 
 
 class GammaMarketClient:
@@ -76,22 +78,37 @@ class GammaMarketClient:
                 'Cannot use "parse_pydantic" and "local_file" params simultaneously.'
             )
 
-        response = httpx.get(self.gamma_markets_endpoint, params=querystring_params)
-        if response.status_code == 200:
-            data = response.json()
-            if local_file_path is not None:
-                with open(local_file_path, "w+") as out_file:
-                    json.dump(data, out_file)
-            elif not parse_pydantic:
-                return data
+        # 记录API调用
+        log_http_request("GET", self.gamma_markets_endpoint, params=querystring_params)
+        start_time = time.time()
+        
+        try:
+            response = httpx.get(self.gamma_markets_endpoint, params=querystring_params)
+            elapsed_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                data = response.json()
+                log_http_response(response.status_code, f"Returned {len(data)} markets", elapsed_time)
+                
+                if local_file_path is not None:
+                    with open(local_file_path, "w+") as out_file:
+                        json.dump(data, out_file)
+                elif not parse_pydantic:
+                    return data
+                else:
+                    markets: list[Market] = []
+                    for market_object in data:
+                        markets.append(self.parse_pydantic_market(market_object))
+                    return markets
             else:
-                markets: list[Market] = []
-                for market_object in data:
-                    markets.append(self.parse_pydantic_market(market_object))
-                return markets
-        else:
-            print(f"Error response returned from api: HTTP {response.status_code}")
-            raise Exception()
+                log_http_response(response.status_code, response.text[:500], elapsed_time)
+                print(f"Error response returned from api: HTTP {response.status_code}")
+                raise Exception()
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"[HTTP Error] {str(e)}")
+            print(f"[HTTP Error] Duration: {elapsed_time:.3f}s")
+            raise
 
     def get_events(
         self, querystring_params={}, parse_pydantic=False, local_file_path=None
@@ -101,21 +118,36 @@ class GammaMarketClient:
                 'Cannot use "parse_pydantic" and "local_file" params simultaneously.'
             )
 
-        response = httpx.get(self.gamma_events_endpoint, params=querystring_params)
-        if response.status_code == 200:
-            data = response.json()
-            if local_file_path is not None:
-                with open(local_file_path, "w+") as out_file:
-                    json.dump(data, out_file)
-            elif not parse_pydantic:
-                return data
+        # 记录API调用
+        log_http_request("GET", self.gamma_events_endpoint, params=querystring_params)
+        start_time = time.time()
+        
+        try:
+            response = httpx.get(self.gamma_events_endpoint, params=querystring_params)
+            elapsed_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                data = response.json()
+                log_http_response(response.status_code, f"Returned {len(data)} events", elapsed_time)
+                
+                if local_file_path is not None:
+                    with open(local_file_path, "w+") as out_file:
+                        json.dump(data, out_file)
+                elif not parse_pydantic:
+                    return data
+                else:
+                    events: list[PolymarketEvent] = []
+                    for market_event_obj in data:
+                        events.append(self.parse_event(market_event_obj))
+                    return events
             else:
-                events: list[PolymarketEvent] = []
-                for market_event_obj in data:
-                    events.append(self.parse_event(market_event_obj))
-                return events
-        else:
-            raise Exception()
+                log_http_response(response.status_code, response.text[:500], elapsed_time)
+                raise Exception()
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"[HTTP Error] {str(e)}")
+            print(f"[HTTP Error] Duration: {elapsed_time:.3f}s")
+            raise
 
     def get_all_markets(self, limit=2) -> "list[Market]":
         return self.get_markets(querystring_params={"limit": limit})
@@ -176,9 +208,23 @@ class GammaMarketClient:
 
     def get_market(self, market_id: int) -> dict():
         url = self.gamma_markets_endpoint + "/" + str(market_id)
-        print(url)
-        response = httpx.get(url)
-        return response.json()
+        
+        # 记录API调用
+        log_http_request("GET", url)
+        start_time = time.time()
+        
+        try:
+            response = httpx.get(url)
+            elapsed_time = time.time() - start_time
+            
+            data = response.json()
+            log_http_response(response.status_code, f"Market ID: {market_id}", elapsed_time)
+            return data
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"[HTTP Error] {str(e)}")
+            print(f"[HTTP Error] Duration: {elapsed_time:.3f}s")
+            raise
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import ast
 import requests
 
 from dotenv import load_dotenv
+from agents.utils.api_logger import log_http_request, log_http_response
 
 from web3 import Web3
 from web3.constants import MAX_INT
@@ -188,16 +189,35 @@ class Polymarket:
 
     def get_all_markets(self) -> "list[SimpleMarket]":
         markets = []
-        res = httpx.get(self.gamma_markets_endpoint)
-        if res.status_code == 200:
-            for market in res.json():
-                try:
-                    market_data = self.map_api_to_market(market)
-                    markets.append(SimpleMarket(**market_data))
-                except Exception as e:
-                    print(e)
-                    pass
-        return markets
+        
+        # 记录API调用
+        log_http_request("GET", self.gamma_markets_endpoint)
+        start_time = time.time()
+        
+        try:
+            res = httpx.get(self.gamma_markets_endpoint)
+            elapsed_time = time.time() - start_time
+            
+            if res.status_code == 200:
+                data = res.json()
+                log_http_response(res.status_code, f"Returned {len(data)} markets", elapsed_time)
+                
+                for market in data:
+                    try:
+                        market_data = self.map_api_to_market(market)
+                        markets.append(SimpleMarket(**market_data))
+                    except Exception as e:
+                        print(e)
+                        pass
+            else:
+                log_http_response(res.status_code, res.text[:500], elapsed_time)
+                
+            return markets
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"[HTTP Error] {str(e)}")
+            print(f"[HTTP Error] Duration: {elapsed_time:.3f}s")
+            raise
 
     def filter_markets_for_trading(self, markets: "list[SimpleMarket]"):
         tradeable_markets = []
@@ -208,11 +228,29 @@ class Polymarket:
 
     def get_market(self, token_id: str) -> SimpleMarket:
         params = {"clob_token_ids": token_id}
-        res = httpx.get(self.gamma_markets_endpoint, params=params)
-        if res.status_code == 200:
-            data = res.json()
-            market = data[0]
-            return self.map_api_to_market(market, token_id)
+        
+        # 记录API调用
+        log_http_request("GET", self.gamma_markets_endpoint, params=params)
+        start_time = time.time()
+        
+        try:
+            res = httpx.get(self.gamma_markets_endpoint, params=params)
+            elapsed_time = time.time() - start_time
+            
+            if res.status_code == 200:
+                data = res.json()
+                log_http_response(res.status_code, f"Token ID: {token_id}, Found {len(data)} markets", elapsed_time)
+                
+                market = data[0]
+                return self.map_api_to_market(market, token_id)
+            else:
+                log_http_response(res.status_code, res.text[:500], elapsed_time)
+                raise Exception(f"Failed to get market for token_id: {token_id}")
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"[HTTP Error] {str(e)}")
+            print(f"[HTTP Error] Duration: {elapsed_time:.3f}s")
+            raise
 
     def map_api_to_market(self, market, token_id: str = "") -> SimpleMarket:
         market = {
@@ -321,7 +359,26 @@ class Polymarket:
         return markets
 
     def get_orderbook(self, token_id: str) -> OrderBookSummary:
-        return self.client.get_order_book(token_id)
+        # 记录API调用
+        print(f"\n[API Call] CLOB get_order_book")
+        print(f"[Request] token_id: {token_id}")
+        start_time = time.time()
+        
+        try:
+            result = self.client.get_order_book(token_id)
+            elapsed_time = time.time() - start_time
+            
+            bids_count = len(result.bids) if result and result.bids else 0
+            asks_count = len(result.asks) if result and result.asks else 0
+            print(f"[Response] bids: {bids_count}, asks: {asks_count}")
+            print(f"[Duration] {elapsed_time:.3f}s")
+            
+            return result
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"[Error] {str(e)}")
+            print(f"[Duration] {elapsed_time:.3f}s (failed)")
+            raise
 
     def get_orderbook_price(self, token_id: str) -> float:
         return float(self.client.get_price(token_id))
@@ -359,9 +416,26 @@ class Polymarket:
         return order
 
     def execute_order(self, price, size, side, token_id) -> str:
-        return self.client.create_and_post_order(
-            OrderArgs(price=price, size=size, side=side, token_id=token_id)
-        )
+        # 记录API调用
+        print(f"\n[API Call] CLOB create_and_post_order")
+        print(f"[Request] token_id: {token_id}, side: {side}, price: {price}, size: {size}")
+        start_time = time.time()
+        
+        try:
+            result = self.client.create_and_post_order(
+                OrderArgs(price=price, size=size, side=side, token_id=token_id)
+            )
+            elapsed_time = time.time() - start_time
+            
+            print(f"[Response] {str(result)[:200]}")
+            print(f"[Duration] {elapsed_time:.3f}s")
+            
+            return result
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"[Error] {str(e)}")
+            print(f"[Duration] {elapsed_time:.3f}s (failed)")
+            raise
 
     def execute_market_order(self, market, amount) -> str:
         token_id = ast.literal_eval(market[0].dict()["metadata"]["clob_token_ids"])[1]

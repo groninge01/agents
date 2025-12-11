@@ -281,7 +281,7 @@ def main(categories=['finance', 'culture'], count_per_category=3, amount_per_tra
         
         print(f"\n📋 添加到持仓监控...")
         for trade in successful_trades:
-            pm.add_position(
+            position, is_new = pm.add_position(
                 token_id=trade['token_id'],
                 market_question=trade['question'],
                 side=trade['side'],
@@ -290,7 +290,8 @@ def main(categories=['finance', 'culture'], count_per_category=3, amount_per_tra
                 cost=trade['cost'],
                 order_id=trade.get('order_id', '')
             )
-            print(f"   ✅ {trade['question'][:40]}... | {trade['side']}")
+            if is_new:
+                print(f"   ✅ {trade['question'][:40]}... | {trade['side']}")
         
         print(f"\n" + "=" * 70)
         print("💡 启动监控:")

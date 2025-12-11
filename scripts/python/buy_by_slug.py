@@ -171,7 +171,7 @@ def main(slugs, amount_per_trade=1.0):
         
         print(f"\n📋 添加到持仓监控...")
         for trade in successful_trades:
-            pm.add_position(
+            position, is_new = pm.add_position(
                 token_id=trade['token_id'],
                 market_question=trade['question'],
                 side=trade['side'],
@@ -180,7 +180,8 @@ def main(slugs, amount_per_trade=1.0):
                 cost=trade['cost'],
                 order_id=trade.get('order_id', '')
             )
-            print(f"   ✅ {trade['question'][:50]}... | {trade['side']}")
+            if is_new:
+                print(f"   ✅ {trade['question'][:50]}... | {trade['side']}")
         
         print(f"\n" + "=" * 70)
         print("💡 启动监控:")
@@ -203,4 +204,7 @@ if __name__ == "__main__":
     
     slugs = sys.argv[1:]
     main(slugs, amount_per_trade=1.0)
+
+
+
 

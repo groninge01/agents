@@ -208,7 +208,7 @@ def main():
         
         if token_id:
             # 添加到持仓监控
-            pm.add_position(
+            position, is_new = pm.add_position(
                 token_id=token_id,
                 market_question=market_info['question'],
                 side=decision['side'],
@@ -244,4 +244,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
 
