@@ -1,7 +1,7 @@
 """
-Solana Up or Down 市场购买脚本
-每15分钟开盘一次，每秒轮询检查市场是否开盘
-一旦开盘立即购买
+Solana Up or Down market buying script
+Markets open every 15 minutes; poll every second to check when the market is open
+Buy immediately once it opens
 """
 
 import json
@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 from dotenv import load_dotenv
 
-# 添加项目根目录到 Python 路径
+# Add project root to Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, PROJECT_ROOT)
 os.environ.setdefault('PYTHONPATH', PROJECT_ROOT)
@@ -24,95 +24,95 @@ load_dotenv()
 
 
 def find_solana_market(gamma):
-    """查找 Solana Up or Down 市场"""
-    # 搜索关键词
+    """Find the Solana Up or Down market."""
+    # Search keywords
     search_keywords = [
         "solana up or down",
         "solana up/down",
         "sol up or down",
         "sol up/down"
     ]
-    
-    # Slug 模式（用于匹配 URL 中的市场标识）
+
+    # Slug patterns (used to match market identifiers in URL)
     slug_patterns = [
-        "sol-updown-15m",  # 例如: sol-updown-15m-1764972900
+        "sol-updown-15m",  # e.g.: sol-updown-15m-1764972900
         "sol-updown",
         "solana-updown"
     ]
-    
-    # 获取所有活跃市场
+
+    # Fetch all active markets
     markets = gamma.get_all_current_markets(limit=500)
-    
+
     for market in markets:
         question = market.get('question', '').lower()
         description = market.get('description', '').lower()
         slug = market.get('slug', '').lower()
-        
-        # 检查是否匹配 Solana Up or Down 市场
+
+        # Check whether it matches Solana Up or Down
         text_to_check = f"{question} {description} {slug}"
-        
-        # 方法1: 通过关键词搜索
+
+        # Method 1: keyword search
         for keyword in search_keywords:
             if keyword in text_to_check:
-                # 检查市场是否活跃且可交易
-                if (market.get('active', False) and 
+                # Check whether market is active and tradable
+                if (market.get('active', False) and
                     not market.get('closed', False) and
                     market.get('enableOrderBook', False)):
                     return market
-        
-        # 方法2: 通过 slug 模式搜索（更精确）
+
+        # Method 2: slug pattern search (more precise)
         for pattern in slug_patterns:
             if pattern in slug:
-                # 检查市场是否活跃且可交易
-                if (market.get('active', False) and 
+                # Check whether market is active and tradable
+                if (market.get('active', False) and
                     not market.get('closed', False) and
                     market.get('enableOrderBook', False)):
                     return market
-    
+
     return None
 
 
 def buy_solana_market(polymarket, market, amount=1.0, side='Yes', dry_run=False):
-    """购买 Solana 市场"""
+    """Buy the Solana market."""
     try:
         question = market.get('question', '')
-        print(f"📋 市场: {question[:60]}...")
-        
-        # 获取 token IDs
+        print(f"📋 Market: {question[:60]}...")
+
+        # Get token IDs
         token_ids = market.get('clobTokenIds', [])
         if isinstance(token_ids, str):
             token_ids = json.loads(token_ids)
-        
+
         if not token_ids or len(token_ids) < 2:
-            print(f"   ❌ 无法获取 token IDs")
+            print(f"   ❌ Unable to get token IDs")
             return None
-        
+
         # Yes = token_ids[0], No = token_ids[1]
         token_idx = 0 if side == 'Yes' else 1
         token_id = token_ids[token_idx]
-        
-        # 获取当前价格
+
+        # Get current price
         orderbook = polymarket.client.get_order_book(token_id)
         if not orderbook or not orderbook.asks:
-            print(f"   ❌ 无法获取订单簿（市场可能还未开盘）")
+            print(f"   ❌ Unable to get order book (market may not be open yet)")
             return None
-        
-        # 买入用 Ask 价格（最低卖单）
+
+        # Buy uses ask price (lowest ask)
         best_ask = min(orderbook.asks, key=lambda x: float(x.price))
         buy_price = float(best_ask.price)
-        
-        # 计算数量
-        min_amount = max(amount, 1.05)  # 至少 $1.05
+
+        # Calculate quantity
+        min_amount = max(amount, 1.05)  # At least $1.05
         quantity = min_amount / buy_price
         quantity = round(quantity, 2)
-        
-        print(f"   方向: {side}")
-        print(f"   价格: ${buy_price:.4f}")
-        print(f"   数量: {quantity:.2f}")
-        print(f"   金额: ${min_amount:.2f}")
-        
+
+        print(f"   Side: {side}")
+        print(f"   Price: ${buy_price:.4f}")
+        print(f"   Quantity: {quantity:.2f}")
+        print(f"   Amount: ${min_amount:.2f}")
+
         if dry_run:
-            print(f"   📋 模拟模式 - 未执行实际交易")
+            print(f"   📋 Dry run - no real trade executed")
             return {
                 'question': question,
                 'side': side,
@@ -122,21 +122,21 @@ def buy_solana_market(polymarket, market, amount=1.0, side='Yes', dry_run=False)
                 'cost': min_amount,
                 'order_id': 'simulated'
             }
-        
-        # 执行限价单
+
+        # Execute limit order
         result = polymarket.execute_order(
             price=buy_price,
             size=quantity,
             side="BUY",
             token_id=token_id
         )
-        
-        # 提取订单 ID
+
+        # Extract order ID
         order_id = result.get('orderID', result.get('id', '')) if isinstance(result, dict) else str(result)
-        
-        print(f"   ✅ BUY {side} ${amount} 成功!")
-        print(f"   订单ID: {order_id[:20]}..." if len(order_id) > 20 else f"   订单ID: {order_id}")
-        
+
+        print(f"   ✅ BUY {side} ${amount} successful!")
+        print(f"   Order ID: {order_id[:20]}..." if len(order_id) > 20 else f"   Order ID: {order_id}")
+
         return {
             'question': question,
             'side': side,
@@ -146,74 +146,74 @@ def buy_solana_market(polymarket, market, amount=1.0, side='Yes', dry_run=False)
             'cost': min_amount,
             'order_id': order_id
         }
-        
+
     except Exception as e:
-        print(f"   ❌ 购买失败: {e}")
+        print(f"   ❌ Buy failed: {e}")
         return None
 
 
 def poll_and_buy_solana(gamma, polymarket, amount=1.0, side='Yes', dry_run=False, max_wait_minutes=15):
     """
-    轮询检查 Solana 市场是否开盘，一旦开盘立即购买
-    
+    Poll to check whether the Solana market is open, and buy immediately once open.
+
     Args:
-        gamma: GammaMarketClient 实例
-        polymarket: Polymarket 实例
-        amount: 购买金额
-        side: 购买方向 ('Yes' 或 'No')
-        dry_run: 是否模拟运行
-        max_wait_minutes: 最大等待时间（分钟）
+        gamma: GammaMarketClient instance
+        polymarket: Polymarket instance
+        amount: Buy amount
+        side: Side ('Yes' or 'No')
+        dry_run: Dry run
+        max_wait_minutes: Max wait time (minutes)
     """
     print("=" * 70)
-    print("🔍 Solana Up or Down 市场轮询购买")
+    print("🔍 Solana Up or Down market polling & buy")
     print("=" * 70)
-    print(f"💰 购买金额: ${amount}")
-    print(f"📊 购买方向: {side}")
-    print(f"🔒 模式: {'模拟运行' if dry_run else '⚠️ 真实交易'}")
-    print(f"⏰ 最大等待时间: {max_wait_minutes} 分钟")
+    print(f"💰 Amount: ${amount}")
+    print(f"📊 Side: {side}")
+    print(f"🔒 Mode: {'Dry run' if dry_run else '⚠️ LIVE TRADE'}")
+    print(f"⏰ Max wait time: {max_wait_minutes} minutes")
     print("=" * 70)
-    
+
     start_time = datetime.now()
     max_wait_seconds = max_wait_minutes * 60
     check_count = 0
-    
+
     while True:
         check_count += 1
         elapsed = (datetime.now() - start_time).total_seconds()
-        
-        # 检查是否超时
+
+        # Check timeout
         if elapsed > max_wait_seconds:
-            print(f"\n⏰ 超时！已等待 {max_wait_minutes} 分钟，未找到开盘的市场")
+            print(f"\n⏰ Timeout! Waited {max_wait_minutes} minutes, no open market found")
             return None
-        
-        # 查找市场
-        print(f"\n[{check_count}] 检查 Solana 市场... (已等待 {elapsed:.0f} 秒)")
+
+        # Find market
+        print(f"\n[{check_count}] Checking Solana market... (waited {elapsed:.0f}s)")
         market = find_solana_market(gamma)
-        
+
         if market:
-            # 检查市场是否可交易（有订单簿）
+            # Check whether market is tradable (has order book)
             token_ids = market.get('clobTokenIds', [])
             if isinstance(token_ids, str):
                 token_ids = json.loads(token_ids)
-            
+
             if token_ids and len(token_ids) >= 2:
                 token_id = token_ids[0] if side == 'Yes' else token_ids[1]
-                
+
                 try:
-                    # 尝试获取订单簿
+                    # Try to fetch order book
                     orderbook = polymarket.client.get_order_book(token_id)
-                    
+
                     if orderbook and orderbook.asks:
-                        print(f"✅ 找到开盘的 Solana 市场！")
-                        print(f"   问题: {market.get('question', '')[:60]}...")
-                        
-                        # 购买
+                        print(f"✅ Found an open Solana market!")
+                        print(f"   Question: {market.get('question', '')[:60]}...")
+
+                        # Buy
                         result = buy_solana_market(polymarket, market, amount, side, dry_run)
-                        
+
                         if result:
-                            # 添加到持仓监控
+                            # Add to position monitor
                             if not dry_run:
-                                print("\n📋 添加到持仓监控...")
+                                print("\n📋 Adding to position monitor...")
                                 pm = PositionManager()
                                 pm.add_position(
                                     token_id=result['token_id'],
@@ -224,28 +224,28 @@ def poll_and_buy_solana(gamma, polymarket, amount=1.0, side='Yes', dry_run=False
                                     cost=result['cost'],
                                     order_id=result['order_id']
                                 )
-                                print(f"   ✅ 已添加到持仓监控")
-                            
+                                print(f"   ✅ Added to position monitor")
+
                             return result
-                        
+
                 except Exception as e:
-                    # 市场可能还未完全开盘，继续等待
+                    # Market may not be fully open yet; continue waiting
                     pass
-        
-        # 等待 1 秒后再次检查
+
+        # Wait 1 second and check again
         time.sleep(1)
 
 
 if __name__ == "__main__":
     import sys
-    
+
     dry_run = True
     if len(sys.argv) > 1 and sys.argv[1] == '--execute':
         dry_run = False
-    
+
     gamma = GammaMarketClient()
     polymarket = Polymarket()
-    
+
     poll_and_buy_solana(
         gamma=gamma,
         polymarket=polymarket,
@@ -254,4 +254,3 @@ if __name__ == "__main__":
         dry_run=dry_run,
         max_wait_minutes=15
     )
-

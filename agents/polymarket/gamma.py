@@ -78,18 +78,18 @@ class GammaMarketClient:
                 'Cannot use "parse_pydantic" and "local_file" params simultaneously.'
             )
 
-        # 记录API调用
+        # Log API call
         log_http_request("GET", self.gamma_markets_endpoint, params=querystring_params)
         start_time = time.time()
-        
+
         try:
             response = httpx.get(self.gamma_markets_endpoint, params=querystring_params)
             elapsed_time = time.time() - start_time
-            
+
             if response.status_code == 200:
                 data = response.json()
                 log_http_response(response.status_code, f"Returned {len(data)} markets", elapsed_time)
-                
+
                 if local_file_path is not None:
                     with open(local_file_path, "w+") as out_file:
                         json.dump(data, out_file)
@@ -118,18 +118,18 @@ class GammaMarketClient:
                 'Cannot use "parse_pydantic" and "local_file" params simultaneously.'
             )
 
-        # 记录API调用
+        # Log API call
         log_http_request("GET", self.gamma_events_endpoint, params=querystring_params)
         start_time = time.time()
-        
+
         try:
             response = httpx.get(self.gamma_events_endpoint, params=querystring_params)
             elapsed_time = time.time() - start_time
-            
+
             if response.status_code == 200:
                 data = response.json()
                 log_http_response(response.status_code, f"Returned {len(data)} events", elapsed_time)
-                
+
                 if local_file_path is not None:
                     with open(local_file_path, "w+") as out_file:
                         json.dump(data, out_file)
@@ -208,15 +208,15 @@ class GammaMarketClient:
 
     def get_market(self, market_id: int) -> dict():
         url = self.gamma_markets_endpoint + "/" + str(market_id)
-        
-        # 记录API调用
+
+        # Log API call
         log_http_request("GET", url)
         start_time = time.time()
-        
+
         try:
             response = httpx.get(url)
             elapsed_time = time.time() - start_time
-            
+
             data = response.json()
             log_http_response(response.status_code, f"Market ID: {market_id}", elapsed_time)
             return data

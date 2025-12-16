@@ -1,88 +1,98 @@
-# Solana Up or Down 市场购买功能说明
+# Solana Up or Down Market Buying Feature
 
-## ✅ 功能状态
+## Feature status
 
-### 1. **市场查找功能** ✅ 已完成
-- **位置**: `scripts/python/buy_solana_up_down.py` 的 `find_solana_market()` 函数
-- **查找方式**:
-  1. **关键词搜索**: "solana up or down", "sol up/down" 等
-  2. **Slug 模式匹配**: `sol-updown-15m`, `sol-updown`, `solana-updown`
-- **验证条件**: 
-  - 市场必须活跃 (`active=True`)
-  - 市场未关闭 (`closed=False`)
-  - 订单簿已启用 (`enableOrderBook=True`)
+### 1. **Market search** Completed
 
-### 2. **市场购买功能** ✅ 已完成
-- **位置**: `scripts/python/buy_solana_up_down.py` 的 `buy_solana_market()` 函数
-- **功能**:
-  - 自动获取订单簿
-  - 使用最低 Ask 价格买入
-  - 支持 Yes/No 方向选择
-  - 支持模拟模式（Dry Run）
-  - 自动添加到持仓监控
+- **Location**: `scripts/python/buy_solana_up_down.py` → `find_solana_market()`
+- **Search methods**:
+  1. **Keyword search**: "solana up or down", "sol up/down", etc.
+  2. **Slug pattern matching**: `sol-updown-15m`, `sol-updown`, `solana-updown`
+- **Validation conditions**:
+  - Market must be active (`active=True`)
+  - Market must not be closed (`closed=False`)
+  - Order book must be enabled (`enableOrderBook=True`)
 
-### 3. **轮询购买功能** ✅ 已完成
-- **位置**: `scripts/python/buy_solana_up_down.py` 的 `poll_and_buy_solana()` 函数
-- **功能**:
-  - 每秒轮询检查市场是否开盘
-  - 一旦找到开盘市场，立即购买
-  - 支持设置最大等待时间（默认15分钟）
-  - 自动添加到持仓监控（非模拟模式）
+### 2. **Market buying** Completed
 
-### 4. **API 集成** ✅ 已完成
-- **位置**: `admin/api.py` 的 `execute_trade()` 函数
-- **支持参数**:
-  - `market_type`: "auto" 或 "solana"
-  - `solana_side`: "Yes" 或 "No"
-  - `amount_per_trade`: 购买金额（最大 1.0 USDC）
-  - `dry_run`: 是否模拟运行
+- **Location**: `scripts/python/buy_solana_up_down.py` → `buy_solana_market()`
+- **What it does**:
+  - Automatically fetches the order book
+  - Buys using the lowest ask price
+  - Supports choosing Yes/No side
+  - Supports dry run mode
+  - Automatically adds the position to monitoring
 
-### 5. **前端 UI** ⚠️ 部分完成
-- **状态**: 后端 API 已支持，但前端 UI 中还没有 Solana 市场选择的选项
-- **当前状态**: 
-  - 前端只发送 `market_type="auto"`（默认值）
-  - 需要添加 UI 选项来选择 "Solana Up or Down" 市场类型
+### 3. **Polling buy** Completed
 
-## 📋 功能流程
+- **Location**: `scripts/python/buy_solana_up_down.py` → `poll_and_buy_solana()`
+- **What it does**:
+  - Polls every second to check whether the market is open
+  - Buys immediately once an open market is found
+  - Supports max wait time configuration (default 15 minutes)
+  - Automatically adds to position monitoring (non-dry-run mode)
 
-### 查找市场流程
-1. 获取所有活跃市场（最多500个）
-2. 检查每个市场的：
-   - Question（问题）
-   - Description（描述）
-   - Slug（URL标识符）
-3. 匹配关键词或 Slug 模式
-4. 验证市场状态（活跃、未关闭、订单簿启用）
+### 4. **API integration** Completed
 
-### 购买流程
-1. 查找 Solana 市场
-2. 获取 Token IDs
-3. 根据方向（Yes/No）选择对应的 Token ID
-4. 获取订单簿
-5. 使用最低 Ask 价格计算购买数量
-6. 执行买入订单
-7. 添加到持仓监控（非模拟模式）
+- **Location**: `admin/api.py` → `execute_trade()`
+- **Supported parameters**:
+  - `market_type`: "auto" or "solana"
+  - `solana_side`: "Yes" or "No"
+  - `amount_per_trade`: Buy amount (max 1.0 USDC)
+  - `dry_run`: Dry run
 
-### 轮询流程
-1. 每秒检查一次市场
-2. 如果找到市场，检查订单簿是否可用
-3. 如果订单簿可用，执行购买
-4. 如果购买成功，添加到监控并返回
-5. 如果超时，返回 None
+### 5. **Frontend UI** Partially completed
 
-## 🔧 使用方法
+### 5. **Frontend UI** ⚠️ Partially completed
 
-### 方法 1: 直接调用脚本
+- **Status**: Backend API is supported, but the frontend UI does not yet expose a Solana market type option
+- **Current behavior**:
+  - Frontend only sends `market_type="auto"` (default)
+  - UI options need to be added to choose "Solana Up or Down" market type
+
+## 📋 Feature flow
+
+### Market search flow
+
+1. Fetch all active markets (up to 500)
+2. For each market, check:
+   - Question
+   - Description
+   - Slug (URL identifier)
+3. Match keywords or slug patterns
+4. Validate market status (active, not closed, order book enabled)
+
+### Buy flow
+
+1. Find the Solana market
+2. Get token IDs
+3. Select token ID based on side (Yes/No)
+4. Fetch order book
+5. Compute quantity using the lowest ask price
+6. Execute buy order
+7. Add to position monitoring (non-dry-run)
+
+### Polling flow
+
+1. Check markets once per second
+2. If a market is found, check whether the order book is available
+3. If the order book is available, execute buy
+4. If buy succeeds, add to monitoring and return
+5. If timeout occurs, return None
+
+## 🔧 Usage
+
+### Method 1: Run the script directly
 
 ```bash
-# 模拟运行
+# Dry run
 python scripts/python/buy_solana_up_down.py
 
-# 真实交易
+# Live trade
 python scripts/python/buy_solana_up_down.py --execute
 ```
 
-### 方法 2: 通过 Python 代码调用
+### Method 2: Call from Python
 
 ```python
 from agents.polymarket.gamma import GammaMarketClient
@@ -95,14 +105,14 @@ polymarket = Polymarket()
 result = poll_and_buy_solana(
     gamma=gamma,
     polymarket=polymarket,
-    amount=1.0,           # 购买金额
-    side='Yes',           # 或 'No'
-    dry_run=False,        # 或 True（模拟模式）
-    max_wait_minutes=15   # 最大等待时间
+    amount=1.0,           # Buy amount
+    side='Yes',           # Or 'No'
+    dry_run=False,        # Or True (dry run)
+    max_wait_minutes=15   # Max wait time
 )
 ```
 
-### 方法 3: 通过 API（需要前端支持）
+### Method 3: Via API (requires frontend support)
 
 ```bash
 curl -X POST http://localhost:8888/api/trade/execute \
@@ -117,33 +127,28 @@ curl -X POST http://localhost:8888/api/trade/execute \
   }'
 ```
 
-## ⚠️ 注意事项
+## ⚠️ Notes
 
-1. **市场开盘时间**: Solana Up or Down 市场每15分钟开盘一次
-2. **轮询频率**: 每秒检查一次，确保能及时捕捉到开盘
-3. **最大等待时间**: 默认15分钟，可以在代码中调整
-4. **购买金额**: 最小 $1.05 USDC（API 限制）
-5. **持仓监控**: 购买成功后会自动添加到监控系统，支持自动止盈/止损
+1. **Market open cadence**: Solana Up or Down markets open every 15 minutes
+2. **Polling frequency**: checks once per second to catch the open quickly
+3. **Max wait time**: default 15 minutes; adjustable in code
+4. **Buy amount**: minimum $1.05 USDC (API limit)
+5. **Position monitoring**: successful buys are automatically added to monitoring with take-profit/stop-loss support
 
-## 🔍 测试建议
+## 🔍 Testing suggestions
 
-1. **先使用模拟模式测试**:
+1. **Test in dry-run mode first**:
+
    ```python
    poll_and_buy_solana(..., dry_run=True)
    ```
 
-2. **检查日志输出**: 查看是否成功找到市场
-3. **验证订单簿**: 确保订单簿可用
-4. **测试购买**: 确认购买逻辑正确
+2. **Check logs**: verify the market is found
+3. **Validate order book**: ensure the order book is available
+4. **Test buying**: confirm the buy logic is correct
 
 ## 📝 TODO
 
-- [ ] 在前端 UI 中添加 Solana 市场选择选项
-- [ ] 添加 Solana 市场状态显示
-- [ ] 优化错误处理和重试逻辑
-
-
-
-
-
-
+- [ ] Add a Solana market type option in the frontend UI
+- [ ] Add Solana market status display
+- [ ] Improve error handling and retry logic

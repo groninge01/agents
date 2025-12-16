@@ -1,8 +1,8 @@
 """
-自动交易 + 止盈止损监控脚本
-1. 自动选择并购买指定数量的市场
-2. 添加到持仓监控
-3. 启动止盈止损监控
+Auto trading + take-profit/stop-loss monitoring
+1. Auto-select and buy a specified number of markets
+2. Add them to position monitoring
+3. Start take-profit/stop-loss monitoring
 """
 
 import json
@@ -16,33 +16,33 @@ from scripts.python.position_monitor import PositionManager, TAKE_PROFIT_PCT, ST
 
 
 # ============================================================
-# 📋 交易配置 - 在这里修改
+# 📋 Trading configuration - edit here
 # ============================================================
 
-NUM_TRADES = 3              # 购买市场数量
-AMOUNT_PER_TRADE = 1.0      # 每个市场投资金额 (USDC)
-MIN_LIQUIDITY = 5000        # 最低流动性要求
-EXECUTE_TRADES = True       # 是否执行真实交易（False = 只模拟）
+NUM_TRADES = 3              # Number of markets to buy
+AMOUNT_PER_TRADE = 1.0      # Amount per market (USDC)
+MIN_LIQUIDITY = 5000        # Minimum liquidity requirement
+EXECUTE_TRADES = True       # Whether to execute real trades (False = simulate only)
 
 # ============================================================
 
 
 def select_best_markets(gamma, executor, num_markets=3):
-    """AI 选择最佳市场"""
-    print("\n📊 获取活跃市场...")
+    """AI selects the best markets."""
+    print("\n📊 Fetching active markets...")
     markets = gamma.get_all_current_markets(limit=300)
-    
-    # 筛选高流动性市场
+
+    # Filter high-liquidity markets
     candidates = []
     for m in markets:
         liquidity = float(m.get('liquidity', 0) or 0)
         prices = m.get('outcomePrices', [])
         if isinstance(prices, str):
             prices = json.loads(prices)
-        
+
         yes_price = float(prices[0]) if prices else 0.5
-        
-        # 流动性足够，价格合理
+
+        # Enough liquidity and reasonable price
         if liquidity > MIN_LIQUIDITY and 0.15 <= yes_price <= 0.85:
             candidates.append({
                 'question': m.get('question', ''),
@@ -50,63 +50,63 @@ def select_best_markets(gamma, executor, num_markets=3):
                 'yes_price': yes_price,
                 'market': m
             })
-    
-    # 按流动性排序
+
+    # Sort by liquidity
     candidates.sort(key=lambda x: x['liquidity'], reverse=True)
-    candidates = candidates[:30]  # 取前 30 个
-    
-    print(f"   找到 {len(candidates)} 个候选市场")
-    
-    # AI 选择
-    print("\n🤖 AI 正在选择最佳市场...")
+    candidates = candidates[:30]  # Take top 30
+
+    print(f"   Found {len(candidates)} candidate markets")
+
+    # AI selection
+    print("\n🤖 AI is selecting the best markets...")
     market_list = []
     for i, m in enumerate(candidates, 1):
-        market_list.append(f"{i}. {m['question']} (Yes: {m['yes_price']:.0%}, 流动性: ${m['liquidity']/1000:.0f}k)")
-    
-    prompt = f'''你是专业的预测市场交易员。以下是活跃市场：
+        market_list.append(f"{i}. {m['question']} (Yes: {m['yes_price']:.0%}, Liquidity: ${m['liquidity']/1000:.0f}k)")
+
+    prompt = f'''You are a professional prediction market trader. Here are active markets:
 
 {chr(10).join(market_list)}
 
-请选择 {num_markets} 个你最有把握预测的市场。
-优先选择：政治、科技、经济类（而非纯体育博彩）
-只返回市场编号，用逗号分隔。例如：1,5,12'''
+Select {num_markets} markets you are most confident forecasting.
+Prefer: politics, tech, economics (rather than pure sports betting)
+Reply with market numbers only, comma-separated. Example: 1,5,12'''
 
     result = executor.llm.invoke([HumanMessage(content=prompt)])
     selection = result.content
-    print(f"   AI 选择: {selection}")
-    
-    # 解析选择
+    print(f"   AI selection: {selection}")
+
+    # Parse selection
     indices = re.findall(r'\d+', selection)
     indices = [int(i)-1 for i in indices if int(i)-1 < len(candidates)][:num_markets]
-    
+
     return [candidates[i] for i in indices]
 
 
 def analyze_market(executor, market_info):
-    """AI 分析单个市场"""
-    prompt = f'''分析这个预测市场：
+    """AI analyzes a single market."""
+    prompt = f'''Analyze this prediction market:
 
-问题：{market_info['question']}
-当前 Yes 价格：{market_info['yes_price']:.0%}
+Question: {market_info['question']}
+Current Yes price: {market_info['yes_price']:.0%}
 
-你认为 Yes 的真实概率是多少？
-只返回一个 0-1 之间的数字，例如：0.65'''
+What do you think the true probability of Yes is?
+Reply with a single number between 0 and 1, e.g. 0.65'''
 
     result = executor.llm.invoke([HumanMessage(content=prompt)])
-    
-    # 解析概率
+
+    # Parse probability
     try:
         prob = float(re.search(r'0?\.\d+', result.content).group())
     except:
         prob = 0.5
-    
-    # 决定买入方向
+
+    # Decide buy side
     yes_price = market_info['yes_price']
     no_price = 1 - yes_price
-    
+
     yes_edge = prob - yes_price
     no_edge = (1 - prob) - no_price
-    
+
     if yes_edge > no_edge:
         return {'side': 'Yes', 'ai_prob': prob, 'buy_price': yes_price, 'edge': yes_edge}
     else:
@@ -114,27 +114,27 @@ def analyze_market(executor, market_info):
 
 
 def execute_trade(polymarket, market_info, decision, amount):
-    """执行交易"""
+    """Execute trade."""
     market = market_info['market']
     token_ids = market.get('clobTokenIds', [])
     if isinstance(token_ids, str):
         token_ids = json.loads(token_ids)
-    
+
     # Yes = token 0, No = token 1
     token_index = 0 if decision['side'] == 'Yes' else 1
     token_id = token_ids[token_index] if token_ids else None
-    
+
     if not token_id:
         return None, None
-    
-    # 计算数量（股数 = 金额 / 价格）
+
+    # Calculate quantity (shares = amount / price)
     quantity = amount / decision['buy_price']
-    
+
     if not EXECUTE_TRADES:
-        print(f"   📋 模拟交易: BUY {decision['side']} @ ${decision['buy_price']:.2f} x {quantity:.2f} 股")
+        print(f"   📋 Simulated trade: BUY {decision['side']} @ ${decision['buy_price']:.2f} x {quantity:.2f} shares")
         return token_id, quantity
-    
-    # 真实交易
+
+    # Real trade
     try:
         result = polymarket.execute_order(
             price=decision['buy_price'],
@@ -142,72 +142,72 @@ def execute_trade(polymarket, market_info, decision, amount):
             side="BUY",
             token_id=token_id
         )
-        print(f"   ✅ 交易成功: {result}")
+        print(f"   ✅ Trade successful: {result}")
         return token_id, quantity
     except Exception as e:
-        print(f"   ❌ 交易失败: {e}")
+        print(f"   ❌ Trade failed: {e}")
         return None, None
 
 
 def main():
     print("=" * 70)
-    print("🚀 自动交易 + 止盈止损监控")
+    print("🚀 Auto trade + take-profit/stop-loss monitoring")
     print("=" * 70)
-    
-    # 显示配置
-    print(f"\n📋 配置:")
-    print(f"   交易数量: {NUM_TRADES} 个市场")
-    print(f"   每笔金额: ${AMOUNT_PER_TRADE}")
-    print(f"   总投资: ${NUM_TRADES * AMOUNT_PER_TRADE}")
-    print(f"   止盈: {TAKE_PROFIT_PCT*100:.0f}%")
-    print(f"   止损: {STOP_LOSS_PCT*100:.0f}%")
-    print(f"   监控间隔: {MONITOR_INTERVAL} 秒")
-    print(f"   执行交易: {'✅ 是' if EXECUTE_TRADES else '❌ 否（模拟）'}")
-    
-    # 初始化
+
+    # Show configuration
+    print(f"\n📋 Configuration:")
+    print(f"   Trades: {NUM_TRADES} markets")
+    print(f"   Amount per trade: ${AMOUNT_PER_TRADE}")
+    print(f"   Total investment: ${NUM_TRADES * AMOUNT_PER_TRADE}")
+    print(f"   Take-profit: {TAKE_PROFIT_PCT*100:.0f}%")
+    print(f"   Stop-loss: {STOP_LOSS_PCT*100:.0f}%")
+    print(f"   Monitor interval: {MONITOR_INTERVAL} seconds")
+    print(f"   Execute trades: {'✅ Yes' if EXECUTE_TRADES else '❌ No (simulated)'}")
+
+    # Init
     gamma = GammaMarketClient()
     polymarket = Polymarket()
     executor = Executor()
     pm = PositionManager()
-    
-    # 检查余额
-    print(f"\n💳 检查余额...")
+
+    # Check balance
+    print(f"\n💳 Checking balance...")
     try:
         balance = polymarket.get_usdc_balance()
-        print(f"   USDC 余额: ${balance:.2f}")
-        
+        print(f"   USDC balance: ${balance:.2f}")
+
         total_needed = NUM_TRADES * AMOUNT_PER_TRADE
         if balance < total_needed and EXECUTE_TRADES:
-            print(f"   ⚠️ 余额不足！需要 ${total_needed:.2f}")
+            print(f"   ⚠️ Insufficient balance! Need ${total_needed:.2f}")
             return
     except Exception as e:
-        print(f"   ⚠️ 无法获取余额: {e}")
-    
-    # 选择市场
+        print(f"   ⚠️ Unable to fetch balance: {e}")
+
+    # Select markets
     selected = select_best_markets(gamma, executor, NUM_TRADES)
-    
+
     if len(selected) < NUM_TRADES:
-        print(f"\n⚠️ 只找到 {len(selected)} 个市场")
-    
-    # 分析并交易
+        print(f"\n⚠️ Only found {len(selected)} markets")
+
+    # Analyze and trade
     print("\n" + "=" * 70)
-    print("📈 开始交易")
+    print("📈 Starting trades")
     print("=" * 70)
-    
+
     successful_trades = []
-    
+
     for i, market_info in enumerate(selected, 1):
         print(f"\n[{i}/{len(selected)}] {market_info['question'][:50]}...")
-        
-        # AI 分析
+
+        # AI analysis
         decision = analyze_market(executor, market_info)
-        print(f"   AI 预测: {decision['ai_prob']:.0%} | 买入: {decision['side']} @ ${decision['buy_price']:.2f}")
-        
-        # 执行交易
+        print(f"   AI forecast: {decision['ai_prob']:.0%} | Buy: {decision['side']} @ ${decision['buy_price']:.2f}")
+
+        # Execute trade
         token_id, quantity = execute_trade(polymarket, market_info, decision, AMOUNT_PER_TRADE)
-        
+
         if token_id:
-            # 添加到持仓监控
+            # Add to position monitor
             position, is_new = pm.add_position(
                 token_id=token_id,
                 market_question=market_info['question'],
@@ -222,29 +222,25 @@ def main():
                 'price': decision['buy_price'],
                 'quantity': quantity
             })
-    
-    # 显示结果
+
+    # Show results
     print("\n" + "=" * 70)
-    print(f"✅ 完成 {len(successful_trades)}/{len(selected)} 笔交易")
+    print(f"✅ Completed {len(successful_trades)}/{len(selected)} trades")
     print("=" * 70)
-    
+
     for i, t in enumerate(successful_trades, 1):
         print(f"   {i}. {t['question'][:40]}... | {t['side']} @ ${t['price']:.2f}")
-    
-    # 显示持仓
+
+    # Display positions
     pm.display_positions()
-    
-    # 启动监控
+
+    # Start monitoring
     if successful_trades:
         print("\n" + "=" * 70)
-        print("🔄 启动止盈止损监控")
+        print("🔄 Starting take-profit/stop-loss monitoring")
         print("=" * 70)
         pm.monitor_loop()
 
 
 if __name__ == "__main__":
     main()
-
-
-
-

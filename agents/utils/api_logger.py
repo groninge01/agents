@@ -1,6 +1,6 @@
 """
-API调用日志工具
-统一打印外部API调用的入参、响应和耗时
+API call logging utilities
+Uniformly print external API call inputs, responses, and timing
 """
 import time
 import json
@@ -10,20 +10,20 @@ from typing import Any, Callable, Optional
 
 def log_api_call(api_name: str, log_request: bool = True, log_response: bool = True, max_response_length: int = 1000):
     """
-    装饰器：记录API调用的入参、响应和耗时
-    
+    Decorator: log API call inputs, outputs, and timing.
+
     Args:
-        api_name: API名称（用于日志标识）
-        log_request: 是否记录请求参数
-        log_response: 是否记录响应数据
-        max_response_length: 响应数据的最大长度（超过会截断）
+        api_name: API name (used for log labeling)
+        log_request: Whether to log request parameters
+        log_response: Whether to log response data
+        max_response_length: Max response length (truncated if exceeded)
     """
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             start_time = time.time()
-            
-            # 记录请求参数
+
+            # Log request parameters
             if log_request:
                 request_info = {
                     "args": [str(arg)[:200] for arg in args] if args else [],
@@ -31,48 +31,48 @@ def log_api_call(api_name: str, log_request: bool = True, log_response: bool = T
                 }
                 print(f"\n[API Call] {api_name}")
                 print(f"[Request] {json.dumps(request_info, indent=2, ensure_ascii=False)[:500]}")
-            
+
             try:
-                # 执行API调用
+                # Execute API call
                 result = func(*args, **kwargs)
-                
-                # 计算耗时
+
+                # Compute duration
                 elapsed_time = time.time() - start_time
-                
-                # 记录响应
+
+                # Log response
                 if log_response:
                     result_str = str(result)
                     if len(result_str) > max_response_length:
                         result_str = result_str[:max_response_length] + f"... (truncated, total length: {len(str(result))})"
                     print(f"[Response] {result_str}")
-                
+
                 print(f"[Duration] {elapsed_time:.3f}s")
-                
+
                 return result
-                
+
             except Exception as e:
-                # 计算耗时
+                # Compute duration
                 elapsed_time = time.time() - start_time
-                
-                # 记录错误
+
+                # Log error
                 print(f"[Error] {str(e)}")
                 print(f"[Duration] {elapsed_time:.3f}s (failed)")
-                
+
                 raise
-        
+
         return wrapper
     return decorator
 
 
 def log_http_request(method: str, url: str, params: Optional[dict] = None, data: Optional[dict] = None):
     """
-    记录HTTP请求（用于httpx调用）
-    
+    Log HTTP request (for httpx calls).
+
     Args:
-        method: HTTP方法
+        method: HTTP method
         url: URL
-        params: 查询参数
-        data: 请求体数据
+        params: Query parameters
+        data: Request body data
     """
     print(f"\n[HTTP Request] {method} {url}")
     if params:
@@ -83,20 +83,18 @@ def log_http_request(method: str, url: str, params: Optional[dict] = None, data:
 
 def log_http_response(status_code: int, response_data: Any, elapsed_time: float, max_length: int = 1000):
     """
-    记录HTTP响应
-    
+    Log HTTP response.
+
     Args:
-        status_code: HTTP状态码
-        response_data: 响应数据
-        elapsed_time: 耗时（秒）
-        max_length: 响应数据最大长度
+        status_code: HTTP status code
+        response_data: Response data
+        elapsed_time: Duration (seconds)
+        max_length: Max response length
     """
     response_str = str(response_data)
     if len(response_str) > max_length:
         response_str = response_str[:max_length] + f"... (truncated, total length: {len(str(response_data))})"
-    
+
     print(f"[HTTP Response] Status: {status_code}")
     print(f"[HTTP Response] Data: {response_str}")
     print(f"[HTTP Response] Duration: {elapsed_time:.3f}s")
-
-

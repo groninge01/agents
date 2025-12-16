@@ -1,155 +1,161 @@
-# 市场评分系统 (Market Scoring System)
+# Market Scoring System
 
-## 📊 概述
+## 📊 Overview
 
-市场评分系统根据 **5 个维度**给市场打分（总分 0-10 分），用于更科学、系统地评估市场的可交易性。
-
----
-
-## 🎯 评分维度详解
-
-### ① 流动性（0-3 分）
-
-评估市场是否有足够的交易深度，避免大单滑点。
-
-| 流动性范围 | 得分 |
-|-----------|------|
-| < $100k | 0 分 |
-| $100k - $300k | 1 分 |
-| $300k - $1M | 2 分 |
-| ≥ $1M | 3 分 |
-
-**代码位置**: `scripts/python/market_scorer.py` → `score_liquidity()`
+The market scoring system scores markets across **5 dimensions** (total score 0-10) to evaluate tradability in a more systematic way.
 
 ---
 
-### ② 活跃度（0-2 分）
+## 🎯 Scoring dimensions
 
-评估市场最近 5 分钟的成交活跃程度。
+### ① Liquidity (0-3)
 
-| 活跃度 | 得分 | 判断标准 |
-|-------|------|---------|
-| 几十笔成交 | 2 分 | 最近5分钟成交量 > $10k |
-| 偶尔成交 | 1 分 | 最近5分钟成交量 $1k - $10k |
-| 不动 | 0 分 | 最近5分钟成交量 < $1k |
+Evaluate whether the market has sufficient depth to avoid large-order slippage.
 
-**判断方法**:
-- 优先使用 24小时成交量估算：`volume_24hr / 288`（5分钟次数）
-- 或使用总成交量作为粗略指标
+| Liquidity range | Score |
+| --------------- | ----- |
+| < $100k         | 0     |
+| $100k - $300k   | 1     |
+| $300k - $1M     | 2     |
+| ≥ $1M           | 3     |
 
-**代码位置**: `scripts/python/market_scorer.py` → `score_activity()`
-
----
-
-### ③ 波动空间（0-2 分）
-
-评估历史/日内价格波动范围，波动越大交易机会越多。
-
-| 波动范围（美分） | 得分 |
-|----------------|------|
-| ≥ 15c | 2 分 |
-| 8c - 15c | 1 分 |
-| < 8c | 0 分 |
-
-**计算方法**:
-- 使用 Yes/No 价格差异
-- 或使用市场 spread 作为替代指标
-
-**代码位置**: `scripts/python/market_scorer.py` → `score_volatility()`
+**Code location**: `scripts/python/market_scorer.py` → `score_liquidity()`
 
 ---
 
-### ④ 事件时间结构（0-2 分）
+### ② Activity (0-2)
 
-评估事件是否有明确的时间节点，便于预测和交易。
+Evaluate trading activity over the last 5 minutes.
 
-| 事件类型 | 得分 | 示例 |
-|---------|------|------|
-| 明确节点 | 2 分 | CPI、选举、FOMC、财报、发射 |
-| 持续发酵 | 1 分 | 战争、危机、趋势 |
-| 没节奏 | 0 分 | 其他 |
+| Activity          | Score | Rule                      |
+| ----------------- | ----- | ------------------------- |
+| Dozens of trades  | 2     | Last 5m volume > $10k     |
+| Occasional trades | 1     | Last 5m volume $1k - $10k |
+| No activity       | 0     | Last 5m volume < $1k      |
 
-**判断关键词**:
+**How it is estimated**:
 
-**明确节点**:
+- Prefer using 24h volume estimate: `volume_24hr / 288` (number of 5-minute windows)
+- Or fall back to total volume as a rough indicator
+
+**Code location**: `scripts/python/market_scorer.py` → `score_activity()`
+
+---
+
+### ③ Volatility room (0-2)
+
+Evaluate the historical/intraday price range; larger volatility usually means more opportunity.
+
+| Volatility range (cents) | Score |
+| ------------------------ | ----- |
+| ≥ 15c                    | 2     |
+| 8c - 15c                 | 1     |
+| < 8c                     | 0     |
+
+**How it is computed**:
+
+- Use the Yes/No price difference
+- Or use market spread as a proxy
+
+**Code location**: `scripts/python/market_scorer.py` → `score_volatility()`
+
+---
+
+### ④ Event time structure (0-2)
+
+Evaluate whether the event has a clear time milestone that makes forecasting/trading easier.
+
+| Event type      | Score | Examples                                 |
+| --------------- | ----- | ---------------------------------------- |
+| Clear milestone | 2     | CPI, elections, FOMC, earnings, launches |
+| Ongoing buildup | 1     | war, crisis, trends                      |
+| No cadence      | 0     | other                                    |
+
+**Keywords used for classification**:
+
+**Clear milestone**:
+
 - `cpi`, `consumer price index`, `inflation`
-- `election`, `投票`, `选举`
+- `election`, `vote`
 - `fomc`, `fed meeting`, `interest rate`
-- `earnings`, `财报`, `financial report`
-- `jobs report`, `非农`
-- `debate`, `辩论`
-- `launch`, `发射`, `release`, `发布`
+- `earnings`, `financial report`
+- `jobs report`
+- `debate`
+- `launch`, `release`, `publish`
 
-**持续发酵**:
-- `war`, `战争`, `conflict`
-- `crisis`, `危机`
-- `trend`, `趋势`
-- `ongoing`, `持续`
+**Ongoing buildup**:
 
-**补充规则**:
-- 如果市场在 24 小时内结束，自动给 2 分（可能是明确节点）
-- 如果市场在 48 小时内结束，给 1 分
+- `war`, `conflict`
+- `crisis`
+- `trend`
+- `ongoing`
 
-**代码位置**: `scripts/python/market_scorer.py` → `score_event_structure()`
+**Additional rules**:
+
+- If the market ends within 24 hours, automatically score 2 (likely a clear milestone)
+- If the market ends within 48 hours, score 1
+
+**Code location**: `scripts/python/market_scorer.py` → `score_event_structure()`
 
 ---
 
-### ⑤ 情绪参与度（0-1 分）
+### ⑤ Sentiment/engagement (0-1)
 
-评估社交媒体和新闻关注度，热度高的市场更容易出现价格波动。
+Evaluate social/news attention; hotter markets tend to move more.
 
-| 参与度 | 得分 | 判断标准 |
-|-------|------|---------|
-| 社媒/新闻热 | 1 分 | 评论数 > 50，或包含热门关键词 |
-| 冷清 | 0 分 | 其他 |
+| Engagement         | Score | Rule                                         |
+| ------------------ | ----- | -------------------------------------------- |
+| Hot on social/news | 1     | Comment count > 50, or contains hot keywords |
+| Quiet              | 0     | other                                        |
 
-**热门关键词**:
+**Hot keywords**:
+
 - `trump`, `biden`, `president`
 - `crypto`, `bitcoin`, `ethereum`
 - `war`, `election`
 - `trending`, `viral`
-- `breaking`, `重大`
+- `breaking`, `major`
 
-**代码位置**: `scripts/python/market_scorer.py` → `score_sentiment_engagement()`
-
----
-
-## ✅ 总分解读
-
-| 总分范围 | 解读 | 建议操作 |
-|---------|------|---------|
-| **≥ 7 分** | 可交易 ✅ | 可以正常交易 |
-| **5-6 分** | 小仓 / 观察 ⚠️ | 可以小仓位交易或观察 |
-| **< 5 分** | 跳过 ❌ | 不建议交易，跳过 |
+**Code location**: `scripts/python/market_scorer.py` → `score_sentiment_engagement()`
 
 ---
 
-## 💻 使用方法
+## ✅ Interpreting the total score
 
-### 方法 1: 直接调用评分函数
+| Total score | Interpretation        | Action                      |
+| ----------- | --------------------- | --------------------------- |
+| **≥ 7**     | Tradable ✅           | Trade normally              |
+| **5-6**     | Small size / watch ⚠️ | Trade small size or observe |
+| **< 5**     | Skip ❌               | Not recommended             |
+
+---
+
+## 💻 Usage
+
+### Method 1: Call the scoring function directly
 
 ```python
 from scripts.python.market_scorer import calculate_market_score, interpret_score
 
-# 获取市场数据
+# Market data
 market = {
     'question': 'Will Bitcoin reach $100k by end of year?',
     'liquidity': 500000,  # $500k
     'volume24hr': 50000,
     'outcomePrices': '[0.65, 0.35]',
     'endDate': '2024-12-31T23:59:59Z',
-    # ... 其他字段
+    # ... other fields
 }
 
-# 计算评分
+# Compute score
 score_data = calculate_market_score(market)
 
-print(f"总分: {score_data['total_score']}/10")
-print(f"解读: {interpret_score(score_data['total_score'])}")
-print(f"可交易: {score_data['tradable']}")
+print(f"Total score: {score_data['total_score']}/10")
+print(f"Interpretation: {interpret_score(score_data['total_score'])}")
+print(f"Tradable: {score_data['tradable']}")
 ```
 
-### 方法 2: 在批量交易中使用（已集成）
+### Method 2: Use in batch trading (already integrated)
 
 ```python
 from scripts.python.batch_trade import find_short_term_markets
@@ -157,21 +163,21 @@ from agents.application.executor import Executor
 
 executor = Executor()
 
-# 查找评分 ≥ 7 分的市场
+# Find markets with score ≥ 7
 candidates = find_short_term_markets(
     gamma=gamma,
     hours=48,
-    min_score=7,  # 只选择评分 ≥ 7 分的市场
+    min_score=7,  # Only select markets with score ≥ 7
     executor=executor
 )
 ```
 
-### 方法 3: 批量筛选市场
+### Method 3: Filter markets in bulk
 
 ```python
 from scripts.python.market_scorer import filter_markets_by_score
 
-# 从所有市场中选择评分 ≥ 7 分的
+# Select markets with score ≥ 7 from all markets
 tradable_markets = filter_markets_by_score(
     markets=all_markets,
     min_score=7,
@@ -181,147 +187,141 @@ tradable_markets = filter_markets_by_score(
 
 ---
 
-## 🔧 集成到现有代码
+## 🔧 Integrate into existing code
 
-### 批量交易脚本已集成
+### Batch trading script integration
 
-`batch_trade.py` 已经集成了评分系统：
+`batch_trade.py` already integrates the scoring system:
 
-1. **自动评分**: 查找市场时自动计算评分
-2. **按评分筛选**: 默认只选择评分 ≥ 7 分的市场
-3. **显示评分详情**: 显示每个市场的详细评分
-4. **按评分排序**: 优先选择评分高的市场
+1. **Automatic scoring**: compute the score while searching markets
+2. **Filter by score**: by default only select markets with score ≥ 7
+3. **Show score breakdown**: display detailed scores per market
+4. **Sort by score**: prefer higher-scoring markets
 
-### 输出示例
+### Output example
 
 ```
-📊 Step 1: 查找 48 小时内结束的市场（带评分系统）...
-   找到 15 个符合条件的市场（评分 ≥ 7 分）
+ Step 1: Find markets ending within 48 hours (with scoring)...
+   Found 15 markets that meet criteria (score ≥ 7)
 
-   市场评分详情:
+   Market score breakdown:
    1. Will Bitcoin reach $100k by end of year?...
-      总分: 8/10 - 可交易 ✅
-      流动性: 3/3 | 活跃度: 2/2 | 波动: 1/2 | 事件结构: 1/2 | 情绪: 1/1
+      Total: 8/10 - Tradable
+      Liquidity: 3/3 | Activity: 2/2 | Volatility: 1/2 | Event structure: 1/2 | Sentiment: 1/1
 ```
 
 ---
 
-## 📝 配置选项
+## Configuration options
 
-### 调整最低分数要求
+### Adjust the minimum score threshold
 
-在 `batch_trade.py` 中修改：
+Edit in `batch_trade.py`:
 
 ```python
-# 只选择评分 ≥ 7 分的市场（可交易）
+# Only select markets with score ≥ 7 (tradable)
 candidates = find_short_term_markets(gamma, hours=48, min_score=7)
 
-# 选择评分 ≥ 5 分的市场（包括观察级别的）
+# Select markets with score ≥ 5 (includes watch-level markets)
 candidates = find_short_term_markets(gamma, hours=48, min_score=5)
 
-# 不筛选，显示所有市场（但仍然会计算评分）
+# No filtering; show all markets (but still compute score)
 candidates = find_short_term_markets(gamma, hours=48, min_score=None)
 ```
 
 ---
 
-## 🎨 评分示例
+## 🎨 Scoring examples
 
-### 示例 1: 高评分市场（8 分）
+### Example 1: High-scoring market (8)
 
-- **流动性**: $1.2M → 3 分
-- **活跃度**: 最近5分钟几十笔成交 → 2 分
-- **波动**: 18c 波动 → 2 分
-- **事件结构**: CPI 报告（明确节点）→ 2 分
-- **情绪**: 冷清 → 0 分
-- **总分**: 9/10 → ✅ 可交易
+- **Liquidity**: $1.2M → 3
+- **Activity**: Dozens of trades in last 5 minutes → 2
+- **Volatility**: 18c range → 2
+- **Event structure**: CPI report (clear milestone) → 2
+- **Sentiment**: Quiet → 0
+- **Total**: 9/10 → ✅ Tradable
 
-### 示例 2: 中等评分市场（6 分）
+### Example 2: Medium-scoring market (6)
 
-- **流动性**: $250k → 1 分
-- **活跃度**: 偶尔成交 → 1 分
-- **波动**: 10c 波动 → 1 分
-- **事件结构**: 持续发酵事件 → 1 分
-- **情绪**: 热门话题 → 1 分
-- **总分**: 6/10 → ⚠️ 小仓 / 观察
+- **Liquidity**: $250k → 1
+- **Activity**: Occasional trades → 1
+- **Volatility**: 10c range → 1
+- **Event structure**: Ongoing buildup event → 1
+- **Sentiment**: Hot topic → 1
+- **Total**: 6/10 → ⚠️ Small size / watch
 
-### 示例 3: 低评分市场（3 分）
+### Example 3: Low-scoring market (3)
 
-- **流动性**: $50k → 0 分
-- **活跃度**: 不动 → 0 分
-- **波动**: 5c 波动 → 0 分
-- **事件结构**: 没节奏 → 0 分
-- **情绪**: 冷清 → 0 分
-- **总分**: 3/10 → ❌ 跳过
-
----
-
-## 🔍 评分逻辑优化建议
-
-### 1. 活跃度评分优化
-
-当前实现基于成交量估算，可以进一步优化：
-
-- 接入实时交易数据 API
-- 监控订单簿更新频率
-- 分析最近 5 分钟的实际成交笔数
-
-### 2. 波动空间评分优化
-
-当前实现基于价格范围，可以进一步优化：
-
-- 接入历史价格数据
-- 计算日内真实波动率
-- 分析价格趋势变化
-
-### 3. 情绪参与度优化
-
-当前实现基于关键词匹配，可以进一步优化：
-
-- 接入社交媒体 API（Twitter, Reddit）
-- 使用 AI 分析新闻热度
-- 监控评论数量和讨论活跃度
-
-### 4. 事件时间结构优化
-
-可以进一步优化：
-
-- 使用 AI 分析事件描述，识别明确节点
-- 检查是否有预定的重要日期
-- 分析历史类似事件的时间模式
+- **Liquidity**: $50k → 0
+- **Activity**: No activity → 0
+- **Volatility**: 5c range → 0
+- **Event structure**: No cadence → 0
+- **Sentiment**: Quiet → 0
+- **Total**: 3/10 → ❌ Skip
 
 ---
 
-## 📚 相关文件
+## 🔍 Suggestions to improve scoring logic
 
-- **评分模块**: `scripts/python/market_scorer.py`
-- **批量交易**: `scripts/python/batch_trade.py`（已集成）
-- **市场挑选逻辑文档**: `MARKET_SELECTION_LOGIC.md`
+### 1. Improve activity scoring
+
+The current implementation estimates activity from volume; you can improve it by:
+
+- Integrating real-time trade data APIs
+- Monitoring order book update frequency
+- Counting actual trades over the last 5 minutes
+
+### 2. Improve volatility-room scoring
+
+The current implementation uses price range; you can improve it by:
+
+- Integrating historical price data
+- Computing realized intraday volatility
+- Analyzing trend changes
+
+### 3. Improve sentiment/engagement scoring
+
+The current implementation matches keywords; you can improve it by:
+
+- Integrating social media APIs (Twitter, Reddit)
+- Using AI to analyze news intensity
+- Monitoring comment counts and discussion activity
+
+### 4. Improve event time-structure scoring
+
+You can further improve it by:
+
+- Using AI to analyze event descriptions and identify clear milestones
+- Checking for scheduled important dates
+- Analyzing timing patterns of similar historical events
 
 ---
 
-## 🎯 使用建议
+## 📚 Related files
 
-1. **默认使用**: 建议默认使用评分 ≥ 7 分的市场（可交易级别）
-2. **保守策略**: 可以提高到 ≥ 8 分，选择更高质量的市场
-3. **激进策略**: 可以降低到 ≥ 5 分，包括观察级别的市场，但需要更谨慎
-4. **组合使用**: 可以结合 AI 选择，先评分筛选，再 AI 选择最有把握的
+- **Scoring module**: `scripts/python/market_scorer.py`
+- **Batch trading**: `scripts/python/batch_trade.py` (integrated)
+- **Market selection logic doc**: `MARKET_SELECTION_LOGIC.md`
 
 ---
 
-## ✅ 总结
+## 🎯 Recommendations
 
-市场评分系统提供了一个**科学、系统、可量化**的方法来评估市场的可交易性，帮助你：
+1. **Default**: Use markets with score ≥ 7 (tradable level)
+2. **Conservative**: Raise to ≥ 8 to pick higher-quality markets
+3. **Aggressive**: Lower to ≥ 5 (includes watch-level markets), but be more cautious
+4. **Combine**: Filter by score first, then use AI to pick the highest-conviction market
 
-- ✅ 过滤低质量市场
-- ✅ 优先选择高质量市场
-- ✅ 量化市场评估标准
-- ✅ 提高交易成功率
+---
 
-**立即开始使用**：运行 `batch_trade.py`，系统会自动使用评分系统筛选市场！
+## ✅ Summary
 
+The market scoring system provides a **systematic, quantitative** way to evaluate tradability and helps you:
 
+- ✅ Filter out low-quality markets
+- ✅ Prefer high-quality markets
+- ✅ Quantify market evaluation criteria
+- ✅ Improve trading success rate
 
-
-
-
+**Start now**: run `batch_trade.py` and the system will automatically use scoring to filter markets.

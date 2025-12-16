@@ -1,71 +1,72 @@
 # Trading Execution Notes
 
-## 如何执行真实交易
+## How to execute live trades
 
-### 重要提示
-1. **Dry Run 模式**: 如果勾选了 "Dry Run (Simulation Mode)" 复选框，系统只会模拟运行，**不会执行真实交易**。
+### Important notes
 
-2. **真实交易模式**: 要执行真实交易，必须**取消勾选** "Dry Run (Simulation Mode" 复选框。
+1. **Dry run mode**: If the "Dry Run (Simulation Mode)" checkbox is selected, the system will only simulate and **will not execute real trades**.
 
-### 执行步骤
+2. **Live trading mode**: To execute real trades, you must **uncheck** the "Dry Run (Simulation Mode)" checkbox.
 
-1. **打开买入标签页**: 点击页面顶部的 "Buy" 标签
+### Steps
 
-2. **填写交易参数**:
-   - Number of Orders: 1-5 个市场
-   - Amount per Order: 每个订单的金额（最大 1.0 USDC）
+1. **Open the Buy tab**: Click the "Buy" tab at the top of the page
 
-3. **确认执行模式**:
-   - ✅ **真实交易**: **不要勾选** "Dry Run (Simulation Mode)" 复选框
-   - 🔒 **模拟运行**: 勾选 "Dry Run (Simulation Mode)" 复选框
+2. **Fill in trading parameters**:
 
-4. **点击 "Execute Buy" 按钮**
+   - Number of Orders: 1-5 markets
+   - Amount per Order: amount per order (max 1.0 USDC)
 
-5. **查看确认对话框**:
-   - 如果显示 "⚠️ ⚠️ ⚠️ LIVE TRADING MODE - Real money will be used! ⚠️ ⚠️ ⚠️" (红色背景)，表示将执行真实交易
-   - 如果显示 "🔒 DRY RUN MODE - No real trades will be executed!" (黄色背景)，表示只是模拟运行
+3. **Confirm execution mode**:
 
-6. **确认执行**: 点击 "Confirm Execute" 按钮
+   - ✅ **Live trading**: do **not** check "Dry Run (Simulation Mode)"
+   - 🔒 **Dry run**: check "Dry Run (Simulation Mode)"
 
-7. **查看执行日志**:
-   - 执行日志会在页面底部的 "Trading Logs" 面板中实时显示
-   - 日志会显示每个交易步骤的详细信息
+4. **Click the "Execute Buy" button**
 
-### 常见问题
+5. **Check the confirmation dialog**:
 
-**Q: 为什么点击购买后没有真实交易发生？**
+   - If it shows "⚠️ ⚠️ ⚠️ LIVE TRADING MODE - Real money will be used! ⚠️ ⚠️ ⚠️" (red background), it will execute real trades
+   - If it shows "🔒 DRY RUN MODE - No real trades will be executed!" (yellow background), it is simulation only
 
-A: 请检查以下几点：
-1. 是否勾选了 "Dry Run (Simulation Mode)" 复选框？如果勾选了，只会模拟运行
-2. 查看确认对话框中的执行模式显示
-3. 查看 "Trading Logs" 面板中的日志，检查是否有错误信息
-4. 检查钱包余额是否充足
+6. **Confirm execution**: Click the "Confirm Execute" button
 
-**Q: 如何确认交易是否执行成功？**
+7. **View execution logs**:
+   - Logs are shown in real time in the "Trading Logs" panel at the bottom of the page
+   - Logs show detailed information for each step
 
-A: 
-1. 查看 "Trading Logs" 面板，日志会显示每个交易的执行结果
-2. 查看 "Trading History" 中的任务状态
-3. 如果交易成功，持仓会自动添加到监控列表中
+### FAQ
 
-**Q: 执行过程中出现错误怎么办？**
+**Q: Why did no real trade happen after clicking buy?**
+
+A: Check the following:
+
+1. Is the "Dry Run (Simulation Mode)" checkbox selected? If yes, it will only simulate
+2. Check the mode shown in the confirmation dialog
+3. Check the logs in the "Trading Logs" panel for errors
+4. Check whether your wallet balance is sufficient
+
+**Q: How can I confirm the trade executed successfully?**
 
 A:
-1. 查看 "Trading Logs" 面板中的错误信息
-2. 检查任务状态是否为 "Failed"
-3. 常见错误：
-   - 余额不足
-   - 市场不存在或已关闭
-   - 网络连接问题
 
-### 技术说明
+1. Check the "Trading Logs" panel; it will show execution results for each trade
+2. Check the task status in "Trading History"
+3. If successful, the position will be automatically added to the monitor list
 
-- 交易执行是异步的，会在后台线程中运行
-- 日志会实时流式传输到前端
-- 即使执行失败，也会在日志中显示详细的错误信息
+**Q: What if an error happens during execution?**
 
+A:
 
+1. Check error messages in the "Trading Logs" panel
+2. Check whether the task status is "Failed"
+3. Common errors:
+   - Insufficient balance
+   - Market does not exist or is closed
+   - Network connectivity issues
 
+### Technical notes
 
-
-
+- Trade execution is asynchronous and runs in a background thread
+- Logs are streamed to the frontend in real time
+- Even if execution fails, detailed error information will be shown in the logs

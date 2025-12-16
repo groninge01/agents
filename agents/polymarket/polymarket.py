@@ -189,19 +189,19 @@ class Polymarket:
 
     def get_all_markets(self) -> "list[SimpleMarket]":
         markets = []
-        
-        # 记录API调用
+
+        # Log API call
         log_http_request("GET", self.gamma_markets_endpoint)
         start_time = time.time()
-        
+
         try:
             res = httpx.get(self.gamma_markets_endpoint)
             elapsed_time = time.time() - start_time
-            
+
             if res.status_code == 200:
                 data = res.json()
                 log_http_response(res.status_code, f"Returned {len(data)} markets", elapsed_time)
-                
+
                 for market in data:
                     try:
                         market_data = self.map_api_to_market(market)
@@ -211,7 +211,7 @@ class Polymarket:
                         pass
             else:
                 log_http_response(res.status_code, res.text[:500], elapsed_time)
-                
+
             return markets
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -228,19 +228,19 @@ class Polymarket:
 
     def get_market(self, token_id: str) -> SimpleMarket:
         params = {"clob_token_ids": token_id}
-        
-        # 记录API调用
+
+        # Log API call
         log_http_request("GET", self.gamma_markets_endpoint, params=params)
         start_time = time.time()
-        
+
         try:
             res = httpx.get(self.gamma_markets_endpoint, params=params)
             elapsed_time = time.time() - start_time
-            
+
             if res.status_code == 200:
                 data = res.json()
                 log_http_response(res.status_code, f"Token ID: {token_id}, Found {len(data)} markets", elapsed_time)
-                
+
                 market = data[0]
                 return self.map_api_to_market(market, token_id)
             else:
@@ -274,29 +274,29 @@ class Polymarket:
         return market
 
     def get_all_events(self, active_only: bool = True) -> "list[SimpleEvent]":
-        """获取所有事件，默认只获取活跃的、未关闭的事件"""
+        """Get all events; by default fetch only active, non-closed events."""
         events = []
-        
-        # 添加查询参数，只获取活跃的、未关闭的、未归档的事件
+
+        # Add query params: fetch only active, non-closed, non-archived events
         params = {}
         if active_only:
             params = {
                 "active": True,
                 "closed": False,
                 "archived": False,
-                "limit": 100,  # 增加限制以获取更多事件
+                "limit": 100,  # Increase limit to fetch more events
             }
-        
+
         res = httpx.get(self.gamma_events_endpoint, params=params)
         if res.status_code == 200:
             data = res.json()
-            print(f"获取到 {len(data)} 个事件")
+            print(f"Fetched {len(data)} events")
             for event in data:
                 try:
                     event_data = self.map_api_to_event(event)
                     events.append(SimpleEvent(**event_data))
                 except Exception as e:
-                    # 静默处理解析错误
+                    # Silently ignore parsing errors
                     pass
         return events
 
@@ -322,25 +322,25 @@ class Polymarket:
         self, events: "list[SimpleEvent]", ignore_restricted: bool = True
     ) -> "list[SimpleEvent]":
         """
-        过滤可交易事件
-        
+        Filter tradeable events
+
         Args:
-            events: 事件列表
-            ignore_restricted: 是否忽略 restricted 标记（API 交易通常不受此限制）
+            events: Event list
+            ignore_restricted: Whether to ignore the restricted flag (API trading usually isn't subject to it)
         """
         tradeable_events = []
         for event in events:
-            # 基本条件：活跃、未关闭、未归档
+            # Base conditions: active, not closed, not archived
             is_tradeable = (
                 event.active
                 and not event.archived
                 and not event.closed
             )
-            
-            # 如果不忽略 restricted，则额外检查
+
+            # If not ignoring restricted, add an extra check
             if not ignore_restricted:
                 is_tradeable = is_tradeable and not event.restricted
-            
+
             if is_tradeable:
                 tradeable_events.append(event)
         return tradeable_events
@@ -359,20 +359,20 @@ class Polymarket:
         return markets
 
     def get_orderbook(self, token_id: str) -> OrderBookSummary:
-        # 记录API调用
+        # Log API call
         print(f"\n[API Call] CLOB get_order_book")
         print(f"[Request] token_id: {token_id}")
         start_time = time.time()
-        
+
         try:
             result = self.client.get_order_book(token_id)
             elapsed_time = time.time() - start_time
-            
+
             bids_count = len(result.bids) if result and result.bids else 0
             asks_count = len(result.asks) if result and result.asks else 0
             print(f"[Response] bids: {bids_count}, asks: {asks_count}")
             print(f"[Duration] {elapsed_time:.3f}s")
-            
+
             return result
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -416,20 +416,20 @@ class Polymarket:
         return order
 
     def execute_order(self, price, size, side, token_id) -> str:
-        # 记录API调用
+        # Log API call
         print(f"\n[API Call] CLOB create_and_post_order")
         print(f"[Request] token_id: {token_id}, side: {side}, price: {price}, size: {size}")
         start_time = time.time()
-        
+
         try:
             result = self.client.create_and_post_order(
                 OrderArgs(price=price, size=size, side=side, token_id=token_id)
             )
             elapsed_time = time.time() - start_time
-            
+
             print(f"[Response] {str(result)[:200]}")
             print(f"[Duration] {elapsed_time:.3f}s")
-            
+
             return result
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -545,15 +545,15 @@ if __name__ == "__main__":
     # pdb.set_trace()
 
     """
-    
+
     (Pdb) pprint(o)
             OrderBookSummary(
-                market='0x26ee82bee2493a302d21283cb578f7e2fff2dd15743854f53034d12420863b55', 
-                asset_id='11015470973684177829729219287262166995141465048508201953575582100565462316088', 
+                market='0x26ee82bee2493a302d21283cb578f7e2fff2dd15743854f53034d12420863b55',
+                asset_id='11015470973684177829729219287262166995141465048508201953575582100565462316088',
                 bids=[OrderSummary(price='0.01', size='600005'), OrderSummary(price='0.02', size='200000'), ...
                 asks=[OrderSummary(price='0.99', size='100000'), OrderSummary(price='0.98', size='200000'), ...
             )
-    
+
     """
 
     # https://polygon-rpc.com

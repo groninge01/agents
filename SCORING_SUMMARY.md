@@ -1,50 +1,49 @@
-# 市场评分系统 - 快速参考
+# Market Scoring System - Quick Reference
 
-## 🎯 评分标准（0-10分）
+## 🎯 Scoring criteria (0-10 points)
 
-### ① 流动性（0-3分）
-- < $100k → 0分
-- $100k - $300k → 1分  
-- $300k - $1M → 2分
-- ≥ $1M → 3分
+### ① Liquidity (0-3 points)
 
-### ② 活跃度（0-2分）
-- 最近5分钟：几十笔成交 → 2分
-- 最近5分钟：偶尔成交 → 1分
-- 最近5分钟：不动 → 0分
+- < $100k → 0 points
+- $100k - $300k → 1 point
+- $300k - $1M → 2 points
+- ≥ $1M → 3 points
 
-### ③ 波动空间（0-2分）
-- 历史/日内：≥ 15c → 2分
-- 历史/日内：8-15c → 1分
-- 历史/日内：< 8c → 0分
+### ② Activity (0-2 points)
 
-### ④ 事件时间结构（0-2分）
-- 明确节点（CPI/选举）→ 2分
-- 持续发酵 → 1分
-- 没节奏 → 0分
+- Last 5 minutes: dozens of trades → 2 points
+- Last 5 minutes: occasional trades → 1 point
+- Last 5 minutes: no activity → 0 points
 
-### ⑤ 情绪参与度（0-1分）
-- 社媒/新闻热 → 1分
-- 冷清 → 0分
+### ③ Volatility room (0-2 points)
 
-## ✅ 总分解读
+- Historical/intraday: ≥ 15c → 2 points
+- Historical/intraday: 8-15c → 1 point
+- Historical/intraday: < 8c → 0 points
 
-- **≥ 7分**: 可交易 ✅
-- **5-6分**: 小仓/观察 ⚠️
-- **< 5分**: 跳过 ❌
+### ④ Event time structure (0-2 points)
 
-## 📁 文件位置
+- Clear milestone (CPI/election) → 2 points
+- Ongoing buildup → 1 point
+- No cadence → 0 points
 
-- **评分模块**: `scripts/python/market_scorer.py`
-- **已集成**: `scripts/python/batch_trade.py`
-- **详细文档**: `MARKET_SCORING_SYSTEM.md`
+### ⑤ Sentiment/engagement (0-1 point)
 
-## 🚀 使用方法
+- Hot on social media/news → 1 point
+- Quiet → 0 points
 
-系统已自动集成！运行批量交易脚本时会自动使用评分系统筛选市场。
+## ✅ Interpreting the total score
 
+- **≥ 7**: Tradable ✅
+- **5-6**: Small size / watch ⚠️
+- **< 5**: Skip ❌
 
+## 📁 File locations
 
+- **Scoring module**: `scripts/python/market_scorer.py`
+- **Integrated in**: `scripts/python/batch_trade.py`
+- **Detailed doc**: `MARKET_SCORING_SYSTEM.md`
 
+## 🚀 Usage
 
-
+Already integrated: when you run the batch trading script, it will automatically use the scoring system to filter markets.

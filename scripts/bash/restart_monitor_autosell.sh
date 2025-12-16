@@ -1,42 +1,41 @@
 #!/bin/bash
-# 重启止盈止损监控脚本
+# Restart take-profit/stop-loss monitor script
 
-# 获取项目根目录 (scripts/python -> scripts -> project_root)
+# Get project root (scripts/python -> scripts -> project_root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 cd "$PROJECT_ROOT"
 
-echo "🔄 重启止盈止损监控..."
-echo "   项目目录: $PROJECT_ROOT"
+echo "🔄 Restarting take-profit/stop-loss monitor..."
+echo "   Project directory: $PROJECT_ROOT"
 echo ""
 
-# 停止旧进程
-echo "⏹ 停止旧进程..."
+# Stop old process
+echo "⏹ Stopping old process..."
 pkill -f "start_monitor.py" 2>/dev/null
 sleep 2
 
-# 激活虚拟环境
+# Activate virtual environment
 source .venv/bin/activate
 export PYTHONPATH="$PROJECT_ROOT"
 
-# 确保 logs 目录存在
+# Ensure the logs directory exists
 mkdir -p logs
 
-# 清空旧日志
+# Clear old logs
 > logs/monitor.log
 
-# 启动新监控
-echo "🚀 启动监控..."
+# Start new monitor
+echo "🚀 Starting monitor..."
 nohup python -u scripts/python/start_monitor.py > logs/monitor.log 2>&1 &
 NEW_PID=$!
 
 echo ""
-echo "✅ 监控已启动！PID: $NEW_PID"
-echo "   按 Ctrl+C 退出日志查看（监控会继续在后台运行）"
+echo "✅ Monitor started! PID: $NEW_PID"
+echo "   Press Ctrl+C to stop viewing logs (monitor will keep running in the background)"
 echo ""
 echo "========================================"
 
-# 自动输出日志
+# Stream logs
 tail -f logs/monitor.log
-

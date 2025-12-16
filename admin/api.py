@@ -1,8 +1,8 @@
 """
-管理后台 API
-- 提供用户名密码认证
-- 支持自动下单
-- 支持实时查看监控日志
+Admin dashboard API
+- Provides username/password authentication
+- Supports automated trading
+- Supports real-time monitoring log viewing
 """
 
 import os
@@ -25,7 +25,7 @@ from pydantic import BaseModel
 import secrets
 import uvicorn
 
-# 添加项目根目录到路径
+# Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -33,105 +33,105 @@ from scripts.python.batch_trade import execute_batch_trades
 from scripts.python.buy_solana_up_down import poll_and_buy_solana
 
 def execute_batch_sell(dry_run=True, num_positions=5):
-    """批量卖出持仓"""
+    """Batch-sell positions."""
     from scripts.python.position_monitor import PositionManager
-    
+
     print("=" * 70)
-    print("📤 批量卖出脚本")
+    print("📤 Batch sell script")
     print("=" * 70)
-    print(f"📊 卖出数量: {num_positions}")
-    print(f"🔒 模式: {'模拟运行' if dry_run else '⚠️ 真实交易'}")
+    print(f"📊 Sell count: {num_positions}")
+    print(f"🔒 Mode: {'Dry run' if dry_run else '⚠️ LIVE TRADE'}")
     print("=" * 70)
-    
+
     pm = PositionManager()
-    # 强制重新加载最新数据
+    # Force reload latest data
     pm.load_positions()
     positions = pm.positions
-    
+
     if not positions:
-        print("\n❌ 没有持仓可卖出")
+        print("\n❌ No positions to sell")
         return
-    
-    # 只选择开放的持仓
+
+    # Only select open positions
     open_positions = [p for p in positions if p.status == "open"]
-    
+
     if not open_positions:
-        print("\n❌ 没有开放的持仓")
+        print("\n❌ No open positions")
         return
-    
-    print(f"\n📋 当前共有 {len(open_positions)} 个开放持仓（已重新加载最新数据）")
-    
-    # 限制卖出数量
+
+    print(f"\n📋 Currently {len(open_positions)} open positions (latest data reloaded)")
+
+    # Limit sell count
     sell_positions = open_positions[:num_positions]
-    
-    print(f"\n🚀 准备卖出 {len(sell_positions)} 个持仓...")
+
+    print(f"\n🚀 Preparing to sell {len(sell_positions)} positions...")
     print("=" * 70)
-    
+
     successful_sells = []
     for i, position in enumerate(sell_positions, 1):
-        print(f"\n卖出 {i}/{len(sell_positions)}: {position.market_question[:40]}...")
-        result = pm.execute_sell(position, reason="批量卖出", execute=not dry_run)
-        
+        print(f"\nSell {i}/{len(sell_positions)}: {position.market_question[:40]}...")
+        result = pm.execute_sell(position, reason="Batch sell", execute=not dry_run)
+
         if result.get("status") in ["success", "simulated"]:
             successful_sells.append({
                 'question': position.market_question,
                 'pnl': result.get('pnl', 0)
             })
-    
+
     print("\n" + "=" * 70)
-    print(f"✅ 批量卖出完成！成功: {len(successful_sells)}/{len(sell_positions)}")
+    print(f"✅ Batch sell completed! Success: {len(successful_sells)}/{len(sell_positions)}")
     print("=" * 70)
-    
+
     if successful_sells:
         total_pnl = sum(s['pnl'] for s in successful_sells)
-        print(f"\n💰 总盈亏: ${total_pnl:+.2f}")
-    
+        print(f"\n💰 Total PnL: ${total_pnl:+.2f}")
+
     return successful_sells
 
 # ============================================================
-# 配置
+# Configuration
 # ============================================================
 
-# 认证配置 - 可以修改这些值
+# Auth configuration - you can change these
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # 请修改为强密码！
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # Please change to a strong password!
 
-# 日志文件路径
+# Log file paths
 LOGS_DIR = PROJECT_ROOT / "logs"
 MONITOR_LOG_FILE = LOGS_DIR / "monitor.log"
 BATCH_TRADE_LOG_FILE = LOGS_DIR / "batch_trade.log"
 
-# 确保日志目录存在
+# Ensure logs directory exists
 LOGS_DIR.mkdir(exist_ok=True)
 
-# 安全配置
+# Security configuration
 security = HTTPBasic()
 
-# 存储交易任务的线程和状态
+# Store trade task threads and status
 trade_tasks = {}
 trade_task_lock = threading.Lock()
 
-# 存储监控进程
+# Store monitor process
 monitor_process = None
 monitor_process_lock = threading.Lock()
 
-# 存储session tokens (简单实现，生产环境应使用Redis等)
+# Store session tokens (simple implementation; use Redis/etc in production)
 active_tokens = {}
 token_expiry = {}
 
 def generate_token():
-    """生成session token"""
+    """Generate a session token."""
     token = secrets.token_urlsafe(32)
     expiry = datetime.now() + timedelta(hours=24)
     token_expiry[token] = expiry
     return token
 
 def verify_token(token: str) -> bool:
-    """验证token是否有效"""
+    """Verify whether a token is valid."""
     if token not in active_tokens:
         return False
     if token in token_expiry and datetime.now() > token_expiry[token]:
-        # 清理过期token
+        # Clean up expired token
         active_tokens.pop(token, None)
         token_expiry.pop(token, None)
         return False
@@ -139,29 +139,29 @@ def verify_token(token: str) -> bool:
 
 
 # ============================================================
-# 数据模型
+# Data models
 # ============================================================
 
 
 class TradeRequest(BaseModel):
-    """交易请求"""
-    num_trades: int = 3  # 下单数（最大5）
-    amount_per_trade: float = 1.0  # 每单金额（最大1.0）
-    trade_type: str = "buy"  # 交易类型：buy 或 sell
-    dry_run: bool = False  # 是否模拟运行
-    market_type: str = "auto"  # 市场类型：auto（自动选择）或 solana（Solana Up or Down）
-    solana_side: str = "Yes"  # Solana 市场购买方向：Yes 或 No（仅当 market_type="solana" 时有效）
+    """Trade request."""
+    num_trades: int = 3  # Number of trades (max 5)
+    amount_per_trade: float = 1.0  # Amount per trade (max 1.0)
+    trade_type: str = "buy"  # Trade type: buy or sell
+    dry_run: bool = False  # Dry run
+    market_type: str = "auto"  # Market type: auto (auto-select) or solana (Solana Up or Down)
+    solana_side: str = "Yes"  # Solana side: Yes or No (only when market_type="solana")
 
 
 class SolanaTradeRequest(BaseModel):
-    """Solana 市场交易请求"""
-    amount: float = 1.0  # 购买金额（最大1.0）
-    side: str = "Yes"  # 购买方向：Yes 或 No
-    dry_run: bool = False  # 是否模拟运行
+    """Solana market trade request."""
+    amount: float = 1.0  # Amount (max 1.0)
+    side: str = "Yes"  # Side: Yes or No
+    dry_run: bool = False  # Dry run
 
 
 class TradeStatus(BaseModel):
-    """交易状态"""
+    """Trade status."""
     task_id: str
     status: str  # pending, running, completed, failed
     message: str
@@ -171,74 +171,74 @@ class TradeStatus(BaseModel):
 
 
 # ============================================================
-# 认证
+# Authentication
 # ============================================================
 
 
 def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
-    """验证用户名密码"""
+    """Verify username/password."""
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
     correct_password = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
-    
+
     if not (correct_username and correct_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误",
+            detail="Invalid username or password",
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
 
 
 # ============================================================
-# FastAPI 应用
+# FastAPI application
 # ============================================================
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期管理"""
-    # 启动时
+    """App lifespan management."""
+    # On startup
     print("=" * 70)
-    print("🚀 管理后台启动")
+    print("🚀 Admin dashboard starting")
     print("=" * 70)
-    print(f"📁 日志目录: {LOGS_DIR}")
-    print(f"🔒 仅允许 localhost 访问")
-    print(f"⚠️  注意：当前已关闭用户认证")
+    print(f"📁 Logs directory: {LOGS_DIR}")
+    print(f"🔒 Only localhost access is allowed")
+    print(f"⚠️  Note: user authentication is currently disabled")
     print("=" * 70)
     yield
-    # 关闭时清理
+    # Cleanup on shutdown
 
 
 app = FastAPI(
-    title="Polymarket 交易管理后台",
-    description="批量交易和监控日志管理",
+    title="Polymarket Trading Admin Dashboard",
+    description="Batch trading and monitoring log management",
     lifespan=lifespan
 )
 
-# 仅允许 localhost 访问
+# Allow only localhost access
 @app.middleware("http")
 async def localhost_only_middleware(request: Request, call_next):
-    """只允许localhost访问"""
+    """Allow only localhost access."""
     client_host = request.client.host if request.client else None
-    
-    # 允许的IP地址
+
+    # Allowed IP addresses
     allowed_hosts = ("127.0.0.1", "localhost", "::1")
-    
+
     if client_host not in allowed_hosts:
         return JSONResponse(
             status_code=403,
-            content={"detail": "仅允许从 localhost 访问"}
+            content={"detail": "Only localhost access is allowed"}
         )
     return await call_next(request)
 
 
 # ============================================================
-# 异常处理
+# Exception handling
 # ============================================================
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """处理请求验证错误（422）"""
+    """Handle request validation errors (422)."""
     errors = []
     for error in exc.errors():
         # Get field path (skip 'body' prefix)
@@ -246,7 +246,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         field_path = " -> ".join(str(loc_item) for loc_item in loc if loc_item != "body")
         if not field_path:
             field_path = "request body"
-        
+
         errors.append({
             "loc": list(loc),  # Keep original format for compatibility
             "field": field_path,
@@ -254,7 +254,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "message": error.get("msg", "Validation error"),
             "type": error.get("type", "value_error")
         })
-    
+
     return JSONResponse(
         status_code=422,
         content={
@@ -265,23 +265,23 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 # ============================================================
-# 路由
+# Routes
 # ============================================================
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """首页 - 返回管理界面"""
+    """Home - return admin UI."""
     html_file = Path(__file__).parent / "ui.html"
     if html_file.exists():
         with open(html_file, "r", encoding="utf-8") as f:
             return f.read()
-    return HTMLResponse("管理界面文件未找到")
+    return HTMLResponse("Admin UI file not found")
 
 
 @app.get("/api/health")
 async def health_check():
-    """健康检查"""
+    """Health check."""
     return {
         "status": "ok",
         "timestamp": datetime.now().isoformat()
@@ -290,23 +290,23 @@ async def health_check():
 
 @app.post("/api/auth/login")
 async def login(credentials: HTTPBasicCredentials = Depends(security)):
-    """登录并获取token"""
+    """Login and get a token."""
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
     correct_password = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
-    
+
     if not (correct_username and correct_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误",
+            detail="Invalid username or password",
             headers={"WWW-Authenticate": "Basic"},
         )
-    
+
     token = generate_token()
     active_tokens[token] = credentials.username
-    
+
     return {
         "token": token,
-        "expires_in": 86400  # 24小时
+        "expires_in": 86400  # 24 hours
     }
 
 
@@ -314,43 +314,43 @@ async def login(credentials: HTTPBasicCredentials = Depends(security)):
 async def execute_trade(
     request: TradeRequest
 ):
-    """执行批量交易"""
-    
-    # 验证参数
+    """Execute batch trades."""
+
+    # Validate parameters
     if request.num_trades <= 0 or request.num_trades > 5:
-        raise HTTPException(status_code=400, detail="交易数量必须在 1-5 之间")
-    
+        raise HTTPException(status_code=400, detail="Number of trades must be between 1 and 5")
+
     if request.amount_per_trade <= 0 or request.amount_per_trade > 1.0:
-        raise HTTPException(status_code=400, detail="每单金额必须在 0.01-1.0 之间")
-    
+        raise HTTPException(status_code=400, detail="Amount per trade must be between 0.01 and 1.0")
+
     if request.trade_type not in ["buy", "sell"]:
-        raise HTTPException(status_code=400, detail="交易类型必须是 buy 或 sell")
-    
-    # 生成任务ID
+        raise HTTPException(status_code=400, detail="Trade type must be buy or sell")
+
+    # Generate task ID
     task_id = f"trade_{int(time.time())}"
-    
-    # 创建日志文件
+
+    # Create log file
     log_file = LOGS_DIR / f"batch_trade_{task_id}.log"
-    
+
     def run_trade():
-        """在后台线程中运行交易"""
+        """Run trade in a background thread."""
         with trade_task_lock:
             trade_tasks[task_id] = {
                 "status": "running",
-                "message": "交易执行中...",
+                "message": "Trade running...",
                 "start_time": datetime.now().isoformat(),
                 "log_file": str(log_file)
             }
-        
+
         try:
-            # 重定向输出到日志文件
+            # Redirect output to log file
             import sys
             old_stdout = sys.stdout
             old_stderr = sys.stderr
-            
-            # 使用追加模式打开日志文件，并立即刷新
+
+            # Open log file and flush immediately
             with open(log_file, "w", encoding="utf-8") as f:
-                # 创建一个自定义的文件对象，每次写入后立即刷新
+                # Custom wrapper to flush after each write
                 class FlushFile:
                     def __init__(self, file):
                         self.file = file
@@ -363,35 +363,35 @@ async def execute_trade(
                         os.fsync(self.file.fileno())
                     def __getattr__(self, name):
                         return getattr(self.file, name)
-                
+
                 flush_file = FlushFile(f)
                 sys.stdout = flush_file
                 sys.stderr = flush_file
-                
+
                 try:
                     print(f"[{datetime.now().isoformat()}] Starting trade execution...")
                     print(f"[{datetime.now().isoformat()}] Trade type: {request.trade_type}, Dry run: {request.dry_run}")
                     flush_file.flush()
-                    
+
                     if request.trade_type == "buy":
-                        # 检查市场类型
+                        # Check market type
                         if request.market_type == "solana":
-                            # Solana Up or Down 市场购买
+                            # Solana Up or Down market purchase
                             print(f"[{datetime.now().isoformat()}] Market type: Solana Up or Down")
                             print(f"[{datetime.now().isoformat()}] Solana side: {request.solana_side}")
                             print(f"[{datetime.now().isoformat()}] Calling poll_and_buy_solana...")
                             flush_file.flush()
-                            
+
                             from agents.polymarket.gamma import GammaMarketClient
                             from agents.polymarket.polymarket import Polymarket
-                            
+
                             gamma = GammaMarketClient()
                             polymarket = Polymarket()
-                            
-                            # 对于 Solana 市场，num_trades 表示轮询次数（最多等待15分钟）
-                            # amount_per_trade 是每次购买的金额
-                            max_wait_minutes = min(request.num_trades * 3, 15)  # 每个交易最多等待3分钟，总最多15分钟
-                            
+
+                            # For Solana market, num_trades indicates polling iterations (up to 15 minutes)
+                            # amount_per_trade is the amount per purchase
+                            max_wait_minutes = min(request.num_trades * 3, 15)  # Up to 3 min per trade; max 15 min total
+
                             result = poll_and_buy_solana(
                                 gamma=gamma,
                                 polymarket=polymarket,
@@ -400,15 +400,15 @@ async def execute_trade(
                                 dry_run=request.dry_run,
                                 max_wait_minutes=max_wait_minutes
                             )
-                            
+
                             if result:
                                 print(f"[{datetime.now().isoformat()}] ✅ Solana market purchase completed successfully")
                             else:
                                 print(f"[{datetime.now().isoformat()}] ⚠️ Solana market purchase completed but no trade executed (market may not have opened)")
-                            
+
                             print(f"[{datetime.now().isoformat()}] poll_and_buy_solana completed")
                         else:
-                            # 自动选择市场
+                            # Auto-select market
                             print(f"[{datetime.now().isoformat()}] Market type: Auto-select")
                             print(f"[{datetime.now().isoformat()}] Calling execute_batch_trades...")
                             flush_file.flush()
@@ -419,7 +419,7 @@ async def execute_trade(
                             )
                             print(f"[{datetime.now().isoformat()}] execute_batch_trades completed")
                     else:
-                        # 卖出功能：卖出已有持仓
+                        # Sell: sell existing positions
                         print(f"[{datetime.now().isoformat()}] Calling execute_batch_sell...")
                         flush_file.flush()
                         from scripts.python.position_monitor import PositionManager
@@ -428,44 +428,44 @@ async def execute_trade(
                             num_positions=request.num_trades
                         )
                         print(f"[{datetime.now().isoformat()}] execute_batch_sell completed")
-                    
+
                     print(f"[{datetime.now().isoformat()}] Trade execution completed successfully")
                     flush_file.flush()
-                    
+
                     with trade_task_lock:
                         trade_tasks[task_id]["status"] = "completed"
-                        trade_tasks[task_id]["message"] = "交易完成"
+                        trade_tasks[task_id]["message"] = "Trade completed"
                         trade_tasks[task_id]["end_time"] = datetime.now().isoformat()
-                        
+
                 except Exception as e:
-                    error_msg = f"❌ 交易执行失败: {e}"
+                    error_msg = f"❌ Trade execution failed: {e}"
                     print(error_msg)
                     import traceback
                     traceback.print_exc()
                     flush_file.flush()
-                    
+
                     with trade_task_lock:
                         trade_tasks[task_id]["status"] = "failed"
-                        trade_tasks[task_id]["message"] = f"交易失败: {str(e)}"
+                        trade_tasks[task_id]["message"] = f"Trade failed: {str(e)}"
                         trade_tasks[task_id]["end_time"] = datetime.now().isoformat()
                 finally:
                     sys.stdout = old_stdout
                     sys.stderr = old_stderr
-                    
+
         except Exception as e:
             with trade_task_lock:
                 trade_tasks[task_id]["status"] = "failed"
-                trade_tasks[task_id]["message"] = f"执行异常: {str(e)}"
+                trade_tasks[task_id]["message"] = f"Execution error: {str(e)}"
                 trade_tasks[task_id]["end_time"] = datetime.now().isoformat()
-    
-    # 启动后台线程
+
+    # Start background thread
     thread = threading.Thread(target=run_trade, daemon=True)
     thread.start()
-    
+
     return {
         "task_id": task_id,
         "status": "pending",
-        "message": "交易任务已启动",
+        "message": "Trade task started",
         "num_trades": request.num_trades,
         "amount_per_trade": request.amount_per_trade,
         "trade_type": request.trade_type,
@@ -477,13 +477,13 @@ async def execute_trade(
 async def get_trade_status(
     task_id: str
 ):
-    """获取交易状态"""
+    """Get trade status."""
     with trade_task_lock:
         task = trade_tasks.get(task_id)
-    
+
     if not task:
-        raise HTTPException(status_code=404, detail="任务不存在")
-    
+        raise HTTPException(status_code=404, detail="Task not found")
+
     return {
         "task_id": task_id,
         "status": task["status"],
@@ -496,7 +496,7 @@ async def get_trade_status(
 
 @app.get("/api/trade/list")
 async def list_trades():
-    """列出所有交易任务"""
+    """List all trade tasks."""
     with trade_task_lock:
         tasks = []
         for task_id, task in trade_tasks.items():
@@ -507,101 +507,101 @@ async def list_trades():
                 "start_time": task.get("start_time"),
                 "end_time": task.get("end_time")
             })
-    
-    # 按时间倒序排列
+
+    # Sort by time descending
     tasks.sort(key=lambda x: x.get("start_time", ""), reverse=True)
     return {"tasks": tasks}
 
 
 @app.get("/api/logs/monitor")
 async def stream_monitor_logs():
-    """实时流式传输监控日志"""
-    
+    """Stream monitor logs in real time."""
+
     def generate():
-        """生成日志流"""
-        # 如果日志文件不存在，创建一个空文件
+        """Generate log stream."""
+        # If the log file does not exist, create an empty file
         if not MONITOR_LOG_FILE.exists():
             MONITOR_LOG_FILE.touch()
-        
-        # 初始化文件位置
+
+        # Initialize file position
         file_position = 0
-        
-        # 先发送已有的内容（只发送最后100行）
+
+        # Send existing content first (only the last 100 lines)
         try:
             if MONITOR_LOG_FILE.exists() and MONITOR_LOG_FILE.stat().st_size > 0:
                 with open(MONITOR_LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
                     all_lines = f.readlines()
-                    # 只发送最后100行
+                    # Only send last 100 lines
                     lines_to_send = all_lines[-100:] if len(all_lines) > 100 else all_lines
                     for line in lines_to_send:
-                        if line.strip():  # 跳过空行
+                        if line.strip():  # Skip empty lines
                             yield f"data: {json.dumps({'line': line.rstrip()})}\n\n"
-                # 更新文件位置到文件末尾（使用文件大小）
+                # Update file position to end of file (use file size)
                 file_position = MONITOR_LOG_FILE.stat().st_size
         except Exception as e:
-            # 如果读取失败，从头开始
+            # If reading fails, start from the beginning
             file_position = 0
-        
-        # 发送心跳保持连接
+
+        # Send heartbeat to keep connection alive
         last_heartbeat = time.time()
-        
-        # 持续监控新内容
+
+        # Continuously monitor new content
         while True:
             try:
-                # 检查文件是否存在
+                # Check whether file exists
                 if not MONITOR_LOG_FILE.exists():
                     time.sleep(1)
                     continue
-                
-                # 获取当前文件大小
+
+                # Get current file size
                 current_size = MONITOR_LOG_FILE.stat().st_size
-                
-                # 如果文件被截断或重置，从头开始
+
+                # If file was truncated/reset, start over
                 if current_size < file_position:
                     file_position = 0
-                
-                # 如果有新内容
+
+                # If there is new content
                 if current_size > file_position:
                     try:
                         with open(MONITOR_LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
                             f.seek(file_position)
-                            # 读取新内容
+                            # Read new content
                             new_content = f.read(current_size - file_position)
-                            
+
                             if new_content:
-                                # 按行分割
+                                # Split into lines
                                 lines = new_content.splitlines(keepends=False)
-                                
-                                # 发送所有完整的行
+
+                                # Send all complete lines
                                 for line in lines:
                                     if line.strip():
                                         yield f"data: {json.dumps({'line': line.rstrip()})}\n\n"
-                                
-                                # 更新文件位置到当前大小
+
+                                # Update file position to current size
                                 file_position = current_size
                     except Exception as e:
-                        # 读取失败，等待下次重试
+                        # Read failed; retry next time
                         pass
-                
-                # 发送心跳（每30秒）
+
+                # Heartbeat (every 30 seconds)
                 current_time = time.time()
                 if current_time - last_heartbeat > 30:
                     yield f": heartbeat\n\n"
                     last_heartbeat = current_time
-                
-                time.sleep(0.3)  # 每0.3秒检查一次，提高响应速度
-                
+
+                time.sleep(0.3)  # Check every 0.3s for responsiveness
+
             except Exception as e:
-                yield f"data: {json.dumps({'error': f'读取日志错误: {str(e)}'})}\n\n"
+                yield f"data: {json.dumps({'error': f'Log read error: {str(e)}'})}\n\n"
                 time.sleep(1)
-    
+
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"  # 禁用nginx缓冲
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
         }
     )
 
@@ -610,24 +610,24 @@ async def stream_monitor_logs():
 async def stream_trade_logs(
     task_id: str
 ):
-    """实时流式传输交易日志"""
-    
-    # 获取任务日志文件路径
+    """Stream trade logs in real time."""
+
+    # Get task log file path
     with trade_task_lock:
         task = trade_tasks.get(task_id)
-    
+
     if not task:
-        raise HTTPException(status_code=404, detail="任务不存在")
-    
+        raise HTTPException(status_code=404, detail="Task not found")
+
     log_file = Path(task.get("log_file", ""))
     if not log_file.exists():
-        raise HTTPException(status_code=404, detail="日志文件不存在")
-    
+        raise HTTPException(status_code=404, detail="Log file not found")
+
     def generate():
-        """生成日志流"""
+        """Generate log stream."""
         file_position = 0
-        
-        # 先发送已有内容
+
+        # Send existing content first
         try:
             with open(log_file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
@@ -636,46 +636,46 @@ async def stream_trade_logs(
                 file_position = f.tell()
         except:
             pass
-        
-        # 监控新内容（如果任务还在运行）
-        max_wait_time = 300  # 最多等待5分钟
+
+        # Monitor new content (while task is still running)
+        max_wait_time = 300  # Max wait 5 minutes
         wait_count = 0
-        
+
         while wait_count < max_wait_time:
             try:
                 current_size = log_file.stat().st_size
-                
+
                 if current_size > file_position:
                     with open(log_file, "r", encoding="utf-8") as f:
                         f.seek(file_position)
                         new_lines = f.readlines()
-                        
+
                         if new_lines:
                             file_position = f.tell()
                             for line in new_lines:
                                 yield f"data: {json.dumps({'line': line.rstrip()})}\n\n"
-                
-                # 检查任务是否完成
+
+                # Check whether task is completed
                 with trade_task_lock:
                     task_status = trade_tasks.get(task_id, {}).get("status")
-                
+
                 if task_status in ("completed", "failed"):
-                    # 读取剩余内容
+                    # Read remaining content
                     with open(log_file, "r", encoding="utf-8") as f:
                         f.seek(file_position)
                         remaining_lines = f.readlines()
                         for line in remaining_lines:
                             yield f"data: {json.dumps({'line': line.rstrip()})}\n\n"
                     break
-                
+
                 time.sleep(0.5)
                 wait_count += 0.5
-                
+
             except Exception as e:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 time.sleep(1)
                 wait_count += 1
-    
+
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
@@ -691,33 +691,33 @@ async def stream_trade_logs(
 async def get_monitor_log_history(
     lines: int = 100
 ):
-    """获取监控日志历史（最后N行）"""
+    """Get monitor log history (last N lines)."""
     if not MONITOR_LOG_FILE.exists():
         return {"lines": []}
-    
+
     try:
         with open(MONITOR_LOG_FILE, "r", encoding="utf-8") as f:
             all_lines = f.readlines()
-            # 返回最后N行
+            # Return last N lines
             last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
             return {
                 "lines": [line.rstrip() for line in last_lines],
                 "total_lines": len(all_lines)
             }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"读取日志失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to read logs: {str(e)}")
 
 
 @app.get("/api/monitor/config")
 async def get_monitor_config():
-    """获取监控配置参数"""
+    """Get monitor configuration parameters."""
     from scripts.python.position_monitor import (
-        TAKE_PROFIT_PCT, 
-        STOP_LOSS_PCT, 
-        MONITOR_INTERVAL, 
+        TAKE_PROFIT_PCT,
+        STOP_LOSS_PCT,
+        MONITOR_INTERVAL,
         AUTO_EXECUTE
     )
-    
+
     return {
         "take_profit_pct": TAKE_PROFIT_PCT,
         "stop_loss_pct": STOP_LOSS_PCT,
@@ -729,29 +729,29 @@ async def get_monitor_config():
 @app.get("/api/positions")
 async def get_positions():
     """
-    获取当前持仓数据（从接口获取）
-    返回市场名称、持仓数量（shares）和当前价值（value）
+    Get current position data (from APIs).
+    Returns market name, shares, and current value.
     """
     try:
         from scripts.python.position_monitor import PositionManager
-        
+
         pm = PositionManager()
         pm.load_positions()
-        
+
         open_positions = [p for p in pm.positions if p.status == "open"]
-        
+
         if not open_positions:
             return {
                 "positions": [],
                 "total_value": 0.0,
                 "count": 0
             }
-        
+
         positions_data = []
         total_value = 0.0
-        
+
         for position in open_positions:
-            # 从区块链接口获取实际持仓数量（购买的shares）
+            # Get actual shares from blockchain API
             try:
                 actual_shares = pm.get_token_balance(position.token_id, wallet="both")
                 if actual_shares > 0.0001:
@@ -760,66 +760,66 @@ async def get_positions():
                     shares = position.quantity
             except:
                 shares = position.quantity
-            
-            # 从订单簿接口获取当前市场的bid价格（卖出价）
-            bid_price = pm.get_current_price(position.token_id)  # 返回的是best bid价格
+
+            # Get current market bid price from order book API (sell price)
+            bid_price = pm.get_current_price(position.token_id)  # Returns best bid
             if bid_price is None:
-                bid_price = position.buy_price  # 如果无法获取，使用买入价作为备用
-            
-            # 计算value：购买的shares × 当前市场的bid价格
+                bid_price = position.buy_price  # Fallback to entry price
+
+            # Value = shares × bid_price
             value = round(shares * bid_price, 6)
             total_value += value
-            
+
             position_info = {
                 "market": position.market_question,
-                "shares": round(shares, 6),  # 持仓数量（购买的shares，从区块链接口获取）
-                "value": round(value, 2)  # 当前价值 = shares × bid_price（保留2位小数）
+                "shares": round(shares, 6),  # Shares
+                "value": round(value, 2)  # Current value = shares × bid_price (2 decimals)
             }
-            
+
             positions_data.append(position_info)
-        
+
         return {
             "positions": positions_data,
             "total_value": round(total_value, 2),
             "count": len(positions_data)
         }
-        
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取持仓数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch position data: {str(e)}")
 
 
 class SellRequest(BaseModel):
     token_id: str
     shares: float
-    reason: str = "手动卖出"
+    reason: str = "Manual sell"
 
 
 @app.get("/api/positions/sellable")
 async def get_sellable_positions():
     """
-    获取可卖出持仓列表（详细信息）
-    用于卖出页面显示
+    Get sellable positions list (detailed).
+    Used for the sell UI.
     """
     try:
         from scripts.python.position_monitor import PositionManager
-        
+
         pm = PositionManager()
         pm.load_positions()
-        
+
         open_positions = [p for p in pm.positions if p.status == "open"]
-        
+
         if not open_positions:
             return {
                 "positions": [],
                 "total_value": 0.0,
                 "count": 0
             }
-        
+
         positions_data = []
         total_value = 0.0
-        
+
         for position in open_positions:
-            # 从区块链接口获取实际持仓数量（购买的shares）
+            # Get actual shares from blockchain API
             try:
                 actual_shares = pm.get_token_balance(position.token_id, wallet="both")
                 if actual_shares > 0.0001:
@@ -828,19 +828,19 @@ async def get_sellable_positions():
                     shares = position.quantity
             except:
                 shares = position.quantity
-            
-            # 从订单簿接口获取当前市场的bid价格（卖出价）
+
+            # Get current market bid price (sell price)
             bid_price = pm.get_current_price(position.token_id)
             if bid_price is None:
                 bid_price = position.buy_price
-            
-            # 计算value和盈亏
+
+            # Compute value and PnL
             value = round(shares * bid_price, 6)
             pnl = (bid_price - position.buy_price) * shares
             pnl_pct = ((bid_price - position.buy_price) / position.buy_price * 100) if position.buy_price > 0 else 0
-            
+
             total_value += value
-            
+
             position_info = {
                 "token_id": position.token_id,
                 "market": position.market_question,
@@ -853,111 +853,108 @@ async def get_sellable_positions():
                 "pnl": round(pnl, 2),
                 "pnl_pct": round(pnl_pct, 2)
             }
-            
+
             positions_data.append(position_info)
-        
+
         return {
             "positions": positions_data,
             "total_value": round(total_value, 2),
             "count": len(positions_data)
         }
-        
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取可卖出持仓列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch sellable positions: {str(e)}")
 
 
 @app.post("/api/positions/sell")
 async def sell_position(request: SellRequest):
     """
-    卖出单个持仓
+    Sell a single position.
     """
     try:
         from scripts.python.position_monitor import PositionManager
-        
+
         pm = PositionManager()
         pm.load_positions()
-        
-        # 找到对应的持仓
+
+        # Find the matching position
         position = next((p for p in pm.positions if p.token_id == request.token_id and p.status == "open"), None)
         if not position:
-            raise HTTPException(status_code=404, detail="持仓未找到或已关闭")
-        
-        # 获取实际持仓数量
+            raise HTTPException(status_code=404, detail="Position not found or already closed")
+
+        # Get actual shares
         try:
             actual_shares = pm.get_token_balance(position.token_id, wallet="both")
             if actual_shares < 0.0001:
-                raise HTTPException(status_code=400, detail="持仓数量不足")
-            
-            # 验证卖出数量
+                raise HTTPException(status_code=400, detail="Insufficient position size")
+
+            # Validate sell size
             if request.shares <= 0:
-                raise HTTPException(status_code=400, detail="卖出数量必须大于0")
-            if request.shares > actual_shares + 0.0001:  # 允许小的精度差异
-                raise HTTPException(status_code=400, detail=f"卖出数量不能超过持仓数量 {actual_shares:.6f}")
+                raise HTTPException(status_code=400, detail="Sell size must be greater than 0")
+            if request.shares > actual_shares + 0.0001:  # Allow small precision difference
+                raise HTTPException(status_code=400, detail=f"Sell size cannot exceed position size {actual_shares:.6f}")
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"获取持仓数量失败: {str(e)}")
-        
-        # 获取当前价格
+            raise HTTPException(status_code=400, detail=f"Failed to fetch position size: {str(e)}")
+
+        # Get current price
         current_price = pm.get_current_price(position.token_id)
         if current_price is None:
-            raise HTTPException(status_code=400, detail="无法获取当前价格")
-        
-        # 检查API钱包余额，因为execute_sell只从API钱包卖出
+            raise HTTPException(status_code=400, detail="Unable to fetch current price")
+
+        # Check API wallet balance because execute_sell sells only from API wallet
         api_balance = pm.get_token_balance(position.token_id, wallet="api")
         proxy_balance = pm.get_token_balance(position.token_id, wallet="proxy")
-        
-        # 检查是否有足够的余额卖出（允许小的精度差异）
-        if api_balance < request.shares * 0.99:  # 需要至少99%的请求数量
-            # 如果token大部分在代理钱包中
+
+        # Check whether balance is sufficient to sell (allow small precision difference)
+        if api_balance < request.shares * 0.99:  # Need at least 99% of requested amount
+            # If token is mostly in proxy wallet
             if proxy_balance >= actual_shares * 0.99:
                 raise HTTPException(
-                    status_code=400, 
-                    detail=f"Token在代理钱包中，无法通过API卖出。API钱包余额: {api_balance:.6f}, 代理钱包余额: {proxy_balance:.6f}。请在Polymarket网页上手动卖出。"
+                    status_code=400,
+                    detail=f"Token is in proxy wallet; cannot sell via API. API wallet balance: {api_balance:.6f}, proxy wallet balance: {proxy_balance:.6f}. Please sell in the Polymarket web UI."
                 )
             else:
-                # API钱包余额不足
+                # API wallet balance is insufficient
                 raise HTTPException(
-                    status_code=400, 
-                    detail=f"API钱包余额不足，无法卖出。API钱包余额: {api_balance:.6f}, 代理钱包余额: {proxy_balance:.6f}, 请求卖出数量: {request.shares:.6f}。请在Polymarket网页上手动卖出或等待token转移到API钱包。"
+                    status_code=400,
+                    detail=f"Insufficient API wallet balance to sell. API wallet balance: {api_balance:.6f}, proxy wallet balance: {proxy_balance:.6f}, requested sell size: {request.shares:.6f}. Please sell in the Polymarket web UI or wait for token transfer to the API wallet."
                 )
-        
-        # 如果卖出全部份额，使用原有的execute_sell方法
+
+        # If selling full size, use existing execute_sell
         if abs(request.shares - actual_shares) < 0.0001:
             result = pm.execute_sell(position, reason=request.reason, execute=True)
             if result.get("status") == "success":
                 return {
                     "status": "success",
-                    "message": "卖出成功",
+                    "message": "Sell successful",
                     "pnl": result.get("pnl", 0)
                 }
             else:
-                error_reason = result.get("reason", "卖出失败")
+                error_reason = result.get("reason", "Sell failed")
                 raise HTTPException(
-                    status_code=400, 
-                    detail=f"卖出失败: {error_reason}"
+                    status_code=400,
+                    detail=f"Sell failed: {error_reason}"
                 )
         else:
-            # 部分卖出 - 这里需要实现部分卖出逻辑
-            # 目前先返回错误，提示用户需要全部卖出
+            # Partial sell - not implemented yet
             raise HTTPException(
-                status_code=400, 
-                detail=f"目前只支持全部卖出。持仓数量: {actual_shares:.6f}, 请求卖出数量: {request.shares:.6f}。请选择全部份额。"
+                status_code=400,
+                detail=f"Currently only full sells are supported. Position size: {actual_shares:.6f}, requested sell size: {request.shares:.6f}. Please select all shares."
             )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
         raise HTTPException(
-            status_code=500, 
-            detail=f"卖出失败: {str(e)}\n详细信息请查看服务器日志。"
+            status_code=500,
+            detail=f"Sell failed: {str(e)}\nPlease check server logs for details."
         )
 
 
-
-
 def is_monitor_running():
-    """检查监控进程是否在运行（检查系统进程）"""
+    """Check whether monitor process is running (via system processes)."""
     try:
         result = subprocess.run(
             ["pgrep", "-f", "start_monitor.py"],
@@ -968,16 +965,17 @@ def is_monitor_running():
     except:
         return False
 
+
 @app.get("/api/monitor/status")
 async def get_monitor_status():
-    """获取监控进程状态"""
-    # 快速检查系统进程（使用更快的命令）
+    """Get monitor process status."""
+    # Fast process check
     try:
-        # 使用更快的检查方式
+        # Use a faster check
         result = subprocess.run(
             ["pgrep", "-f", "start_monitor.py"],
             capture_output=True,
-            timeout=1,  # 减少超时时间
+            timeout=1,  # Shorter timeout
             text=True
         )
         if result.returncode == 0 and result.stdout.strip():
@@ -988,11 +986,11 @@ async def get_monitor_status():
                 "pid": pid
             }
     except subprocess.TimeoutExpired:
-        # 超时表示可能没有进程或检查太慢
+        # Timeout may mean no process or slow check
         pass
     except:
         pass
-    
+
     return {
         "running": False,
         "pid": None
@@ -1001,49 +999,49 @@ async def get_monitor_status():
 
 @app.post("/api/monitor/start")
 async def start_monitor():
-    """启动监控进程"""
+    """Start monitor process."""
     global monitor_process
-    
-    # 快速检查是否已经在运行（不阻塞）
+
+    # Quick check whether already running (non-blocking)
     try:
         quick_check = subprocess.run(
             ["pgrep", "-f", "start_monitor.py"],
             capture_output=True,
-            timeout=0.5  # 很短的超时
+            timeout=0.5  # Very short timeout
         )
         if quick_check.returncode == 0 and quick_check.stdout.strip():
             pid = int(quick_check.stdout.decode().strip().split('\n')[0])
             return {
                 "status": "already_running",
-                "message": f"监控进程已在运行 (PID: {pid})",
+                "message": f"Monitor process is already running (PID: {pid})",
                 "pid": pid
             }
     except:
-        pass  # 忽略检查错误，继续启动
-    
-    # 在后台线程中执行启动操作，避免阻塞API
+        pass  # Ignore check error and continue
+
+    # Run startup in a background thread to avoid blocking API
     def start_in_background():
         try:
-            # 停止旧进程
+            # Stop old process
             subprocess.Popen(
                 ["pkill", "-f", "start_monitor.py"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
-            time.sleep(0.5)  # 短暂等待
-            
-            # 清空日志文件
+            time.sleep(0.5)  # Short wait
+
+            # Clear log file
             if MONITOR_LOG_FILE.exists():
                 MONITOR_LOG_FILE.write_text("")
-            
-            # 启动新进程
+
+            # Start new process
             python_executable = sys.executable
             monitor_script = PROJECT_ROOT / "scripts" / "python" / "start_monitor.py"
             log_file_path = str(MONITOR_LOG_FILE)
-            
+
             import shlex
             cmd = f"nohup {shlex.quote(python_executable)} -u {shlex.quote(str(monitor_script))} > {shlex.quote(log_file_path)} 2>&1 &"
-            
+
             subprocess.Popen(
                 cmd,
                 shell=True,
@@ -1053,64 +1051,64 @@ async def start_monitor():
                 stderr=subprocess.DEVNULL
             )
         except Exception as e:
-            print(f"启动监控进程时出错: {e}")
-    
-    # 在后台线程启动，立即返回
+            print(f"Error starting monitor process: {e}")
+
+    # Start in background thread and return immediately
     thread = threading.Thread(target=start_in_background, daemon=True)
     thread.start()
-    
-    # 立即返回响应
+
+    # Return immediately
     return {
         "status": "started",
-        "message": "监控进程启动命令已执行，请稍后查看状态"
+        "message": "Monitor start command executed. Please check status shortly."
     }
 
 
 @app.post("/api/monitor/stop")
 async def stop_monitor():
-    """停止监控进程"""
+    """Stop monitor process."""
     global monitor_process
-    
+
     with monitor_process_lock:
         if monitor_process is None or monitor_process.poll() is not None:
             return {
                 "status": "not_running",
-                "message": "监控进程未运行"
+                "message": "Monitor process is not running"
             }
-        
+
         try:
-            # 尝试优雅停止
+            # Try graceful shutdown
             monitor_process.terminate()
             monitor_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            # 强制停止
+            # Force stop
             monitor_process.kill()
             monitor_process.wait()
         except Exception as e:
             pass
-        
+
         monitor_process = None
-        
-        # 同时停止可能遗留的进程
+
+        # Also stop any leftover processes
         try:
-            subprocess.run(["pkill", "-f", "start_monitor.py"], 
+            subprocess.run(["pkill", "-f", "start_monitor.py"],
                          capture_output=True, timeout=5)
         except:
             pass
-        
+
         return {
             "status": "stopped",
-            "message": "监控进程已停止"
+            "message": "Monitor process stopped"
         }
 
 
 # ============================================================
-# 启动服务器
+# Start server
 # ============================================================
 
 
 if __name__ == "__main__":
-    # 仅监听 localhost
+    # Listen on localhost only
     uvicorn.run(
         app,
         host="127.0.0.1",
@@ -1118,4 +1116,3 @@ if __name__ == "__main__":
         reload=False,
         log_level="info"
     )
-

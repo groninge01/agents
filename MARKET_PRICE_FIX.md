@@ -1,103 +1,105 @@
-# 市场价格获取修复说明
+# Market Price Fetch Fix
 
-## 🐛 问题描述
+## 🐛 Problem
 
-用户反馈：Seahawks vs. Falcons 市场的显示数据与官网完全相反
-- **官网显示**：买了 Falcons，价格 25¢，现在几乎归零，损失 -$4.19 (-99.8%)
-- **系统显示**：No | $0.2500 | $0.9995 | ... | $+12.59 (+299.80%)
+User report: for the Seahawks vs. Falcons market, the displayed values were the exact opposite of the official website.
 
-## 🔍 根本原因
+- **Official site**: bought Falcons at 25¢, now almost zero, PnL -$4.19 (-99.8%)
+- **System**: No | $0.2500 | $0.9995 | ... | $+12.59 (+299.80%)
 
-### 问题 1: 价格获取错误
+## 🔍 Root cause
 
-在 `position_monitor.py` 的 `get_current_price()` 方法中，使用 Gamma API 作为备用方法时：
+### Issue 1: wrong price lookup
+
+In `position_monitor.py` `get_current_price()`, when using the Gamma API as a fallback:
 
 ```python
-# ❌ 错误：总是返回 prices[0]
+# ❌ Wrong: always returns prices[0]
 prices = data[0].get('outcomePrices', [])
 if prices and len(prices) > 0:
-    return float(prices[0])  # 问题：总是用第一个价格！
+    return float(prices[0])  # Problem: always uses the first price
 ```
 
-**问题**：如果用户买了 Falcons token（可能是第二个 outcome），但系统总是返回 `prices[0]`（第一个 outcome 的价格），导致：
-- 用户实际持有 Falcons token（价格接近 0）
-- 系统显示 Seahawks 的价格（接近 1.0）
-- 结果：显示完全相反！
+**Problem**: if the user bought the Falcons token (possibly the second outcome), but the system always returned `prices[0]` (the first outcome price), then:
 
-### 问题 2: Token ID 到价格的映射
+- The user actually holds Falcons (price near 0)
+- The system shows Seahawks (price near 1.0)
+- Result: completely inverted display
 
-需要根据 `token_id` 找到它在 `clobTokenIds` 列表中的索引，然后返回对应的 `outcomePrices[index]` 价格。
+### Issue 2: mapping token ID to the correct price
 
-## ✅ 解决方案
+We need to locate `token_id` in the `clobTokenIds` list to find its index, then return `outcomePrices[index]`.
 
-### 修复 1: 根据 Token ID 获取正确的价格
+## ✅ Fix
 
-修改 `get_current_price()` 方法，根据 token_id 找到对应的索引：
+### Fix 1: get the correct price by token ID
+
+Modify `get_current_price()` to find the index for the given token_id:
 
 ```python
-# ✅ 正确：根据 token_id 找到对应的价格索引
+# ✅ Correct: find the price index by token_id
 token_ids_list = market.get('clobTokenIds', [])
 prices = market.get('outcomePrices', [])
 
-# 找到 token_id 在列表中的索引
+# Find token_id index in the list
 token_idx = token_ids_list.index(token_id)
 if token_idx < len(prices):
-    return float(prices[token_idx])  # 返回对应索引的价格
+    return float(prices[token_idx])  # Return the matching price
 ```
 
-### 修复 2: 保存实际的方向名称
+### Fix 2: save the actual side label
 
-在保存持仓时，保存实际的方向名称（如 "Yes (Falcons)"），而不是只保存 "Yes" 或 "No"：
+When saving positions, store the real label (e.g. "Yes (Falcons)") rather than only "Yes" or "No":
 
 ```python
-# 保存为 "Yes (Falcons)" 格式
+# Save as "Yes (Falcons)"
 side_to_save = f"{t['side']} ({outcome_name})"
 ```
 
-这样可以：
-1. 清楚地显示实际购买的是什么
-2. 便于调试和排查问题
-3. 在显示时更直观
+This helps:
 
-## 🔧 修改的文件
+1. Clearly show what was actually purchased
+2. Make debugging/troubleshooting easier
+3. Provide more intuitive display
+
+## 🔧 Files changed
 
 1. **`scripts/python/position_monitor.py`**
-   - 修复 `get_current_price()` 方法，根据 token_id 正确获取价格
+
+   - Fix `get_current_price()` to use token_id mapping
 
 2. **`scripts/python/batch_trade.py`**
-   - 在保存持仓时，保存实际的方向名称（包含 outcome 名称）
+   - Save the actual side label (including outcome name) when persisting positions
 
-## 📝 验证方法
+## 📝 Verification
 
-1. **检查持仓记录**：
-   - 打开 `scripts/python/positions.json`
-   - 查看 `side` 字段，应该显示 "Yes (Falcons)" 或类似格式
+1. **Check saved positions**:
 
-2. **检查价格计算**：
-   - 运行 `python scripts/python/show_positions.py`
-   - 价格应该与官网显示一致
+   - Open `scripts/python/positions.json`
+   - The `side` field should look like "Yes (Falcons)" (or similar)
 
-3. **对比官网**：
-   - 检查同一持仓在官网和系统中的显示
-   - 价格和盈亏应该一致
+2. **Check price calculation**:
 
-## ⚠️ 注意事项
+   - Run `python scripts/python/show_positions.py`
+   - Prices should match the official website
 
-1. **旧持仓数据**：之前保存的持仓可能仍然显示错误的方向，需要手动更新或重新添加
+3. **Compare to the website**:
+   - Compare the same position on the website vs the system
+   - Price and PnL should match
 
-2. **价格来源优先级**：
-   - 优先使用订单簿 API（更准确）
-   - 备用 Gamma API（已修复映射问题）
+## ⚠️ Notes
 
-3. **Token ID 匹配**：确保 `token_id` 在 `clobTokenIds` 列表中可以找到，否则会显示警告并使用备用逻辑
+1. **Old position data**: previously saved positions may still show the wrong side and may need manual update or re-adding
 
-## 🎯 下一步
+2. **Price source priority**:
 
-1. 测试修复后的代码，验证价格是否正确
-2. 如果还有问题，检查是否有其他使用 `prices[0]` 的地方
-3. 考虑添加更详细的日志，记录价格获取过程
+   - Prefer order book API (more accurate)
+   - Fallback Gamma API (mapping fixed)
 
+3. **Token ID matching**: ensure `token_id` exists in `clobTokenIds`; otherwise a warning will be shown and fallback logic used
 
+## 🎯 Next steps
 
-
-
+1. Test the fix and verify prices are correct
+2. If issues remain, search for other places using `prices[0]`
+3. Consider adding more detailed logs for price fetching

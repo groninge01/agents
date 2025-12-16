@@ -1,47 +1,47 @@
 #!/usr/bin/env python
 """
-启动管理后台服务
+Start the admin backend service
 """
 
 import os
 import sys
 import traceback
 
-# 添加项目根目录到路径
+# Add project root to path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# 设置环境变量
+# Set environment variable
 os.environ.setdefault('PYTHONPATH', PROJECT_ROOT)
 
 if __name__ == "__main__":
     try:
         import uvicorn
     except ImportError as e:
-        print("❌ 错误: 无法导入 uvicorn")
-        print(f"   请安装: pip install uvicorn")
-        print(f"   详细错误: {e}")
+        print("❌ Error: Unable to import uvicorn")
+        print(f"   Please install: pip install uvicorn")
+        print(f"   Details: {e}")
         sys.exit(1)
-    
+
     try:
         from admin.api import app
     except Exception as e:
-        print("❌ 错误: 无法导入 admin.api")
-        print(f"   详细错误: {e}")
+        print("❌ Error: Unable to import admin.api")
+        print(f"   Details: {e}")
         traceback.print_exc()
         sys.exit(1)
-    
+
     print("=" * 70)
-    print("🚀 启动 Polymarket 交易管理后台")
+    print("🚀 Starting Polymarket trading admin")
     print("=" * 70)
-    print(f"📍 访问地址: http://127.0.0.1:8888")
-    print(f"🔒 仅允许 localhost 访问")
-    print(f"⚠️  注意：当前已关闭用户认证")
+    print(f"📍 URL: http://127.0.0.1:8888")
+    print(f"🔒 Only localhost access allowed")
+    print(f"⚠️  Note: user authentication is currently disabled")
     print("=" * 70)
     print()
-    
+
     try:
-        # 仅监听 localhost
+        # Listen only on localhost
         uvicorn.run(
             app,
             host="127.0.0.1",
@@ -49,7 +49,6 @@ if __name__ == "__main__":
             log_level="info"
         )
     except Exception as e:
-        print(f"❌ 服务启动失败: {e}")
+        print(f"❌ Failed to start service: {e}")
         traceback.print_exc()
         sys.exit(1)
-

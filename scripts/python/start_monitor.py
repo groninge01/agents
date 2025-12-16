@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-"""启动止盈止损监控"""
+"""Start take-profit/stop-loss monitoring."""
 
 import sys
 import os
 
-# 实时输出
+# Real-time output
 sys.stdout.reconfigure(line_buffering=True)
 
-# 确保 logs 目录存在
+# Ensure the logs directory exists
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
@@ -16,16 +16,15 @@ from scripts.python.position_monitor import PositionManager, show_config
 
 if __name__ == "__main__":
     show_config()
-    
+
     pm = PositionManager()
     pm.display_positions()
-    
+
     if pm.positions:
-        print('🔄 启动监控...')
-        print('   每 5 秒检查一次')
-        print('   按 Ctrl+C 停止')
+        print('🔄 Starting monitor...')
+        print('   Check every 5 seconds')
+        print('   Press Ctrl+C to stop')
         print()
         pm.monitor_loop()
     else:
-        print('⚠️ 没有持仓，无需监控')
-
+        print('⚠️ No positions; monitoring not needed')

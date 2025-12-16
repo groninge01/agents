@@ -1,25 +1,25 @@
-# 快速启动指南
+# Quick Start Guide
 
-## 🔧 修复 Python 模块导入问题
+## 🔧 Fix Python module import issues
 
-如果你遇到 `ModuleNotFoundError: No module named 'agents'` 错误，请按以下步骤操作：
+If you encounter `ModuleNotFoundError: No module named 'agents'`, follow these steps:
 
-### 方法 1: 从项目根目录运行（推荐）✅
+### Method 1: Run from the project root (recommended) ✅
 
 ```bash
-# 确保在项目根目录
+# Make sure you are in the project root
 cd /home/ericl/source_code/workspace_python/polymarket_agents
 
-# 激活虚拟环境（如果使用）
+# Activate the virtual environment (if used)
 source .venv/bin/activate  # Linux/Mac
-# 或
+# Or
 .venv\Scripts\activate     # Windows
 
-# 运行脚本
+# Run the script
 python scripts/python/buy_solana_up_down.py
 ```
 
-### 方法 2: 设置 PYTHONPATH 环境变量
+### Method 2: Set the PYTHONPATH environment variable
 
 ```bash
 # Linux/Mac
@@ -31,60 +31,56 @@ $env:PYTHONPATH="C:\path\to\polymarket_agents;$env:PYTHONPATH"
 python scripts/python/buy_solana_up_down.py
 ```
 
-### 方法 3: 使用 -m 参数运行（推荐）✅
+### Method 3: Run with the -m option (recommended) ✅
 
 ```bash
-# 从项目根目录运行
+# Run from the project root
 cd /home/ericl/source_code/workspace_python/polymarket_agents
 python -m scripts.python.buy_solana_up_down
 ```
 
-## ✅ 已修复
+## ✅ Fixed
 
-我已经修复了 `buy_solana_up_down.py` 脚本，添加了自动路径设置代码。现在脚本应该可以正常工作了。
+I fixed the `buy_solana_up_down.py` script by adding automatic path setup code. The script should now work normally.
 
-## 🧪 测试运行
+## 🧪 Test run
 
-运行以下命令测试：
+Run the following command to test:
 
 ```bash
-# 从项目根目录
+# From the project root
 cd /home/ericl/source_code/workspace_python/polymarket_agents
 
-# 激活虚拟环境（如果使用）
+# Activate the virtual environment (if used)
 source .venv/bin/activate
 
-# 运行脚本（模拟模式，不会真正购买）
+# Run the script (dry run mode; it will not actually buy)
 python scripts/python/buy_solana_up_down.py
 ```
 
-## 📝 注意事项
+## 📝 Notes
 
-1. **确保在项目根目录运行**: 脚本需要找到 `agents` 和 `scripts` 目录
-2. **激活虚拟环境**: 确保安装了所有依赖
-3. **检查 .env 文件**: 确保配置了必要的环境变量
+1. **Run from the project root**: The script needs to find the `agents` and `scripts` directories
+2. **Activate the virtual environment**: Ensure all dependencies are installed
+3. **Check the .env file**: Ensure required environment variables are configured
 
-## 🔍 如果仍有问题
+## 🔍 If you still have problems
 
-检查以下几点：
+Check the following:
 
-1. **虚拟环境是否激活**
+1. **Is the virtual environment activated?**
+
    ```bash
-   which python  # 应该显示虚拟环境路径
+   which python  # should show the virtual environment path
    ```
 
-2. **依赖是否安装**
+2. **Are dependencies installed?**
+
    ```bash
-   pip list | grep -E "dotenv|httpx"  # 检查关键依赖
+   pip list | grep -E "dotenv|httpx"  # check key dependencies
    ```
 
-3. **项目结构是否正确**
+3. **Is the project structure correct?**
    ```bash
-   ls -la agents/  # 应该能看到 agents 目录
+   ls -la agents/  # should show the agents directory
    ```
-
-
-
-
-
-

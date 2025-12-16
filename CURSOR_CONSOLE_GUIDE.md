@@ -1,61 +1,69 @@
-# Cursor 控制台使用指南
+# Cursor Console/Terminal Guide
 
-## 📺 如何打开终端/控制台
+## 📺 How to open the terminal/console
 
-### 方法 1: 快捷键（最快）⚡
-- **Windows/Linux**: `Ctrl + ` `（反引号，Tab键上方）
-- **Mac**: `Ctrl + ` ` 或 `Cmd + J`
-- 可以快速切换显示/隐藏终端面板
+### Method 1: Keyboard shortcuts (fastest) ⚡
 
-### 方法 2: 通过菜单 📋
-1. 点击顶部菜单栏
-2. 选择 `Terminal` → `New Terminal`
-3. 或选择 `View` → `Terminal`
+- **Windows/Linux**: `Ctrl + ` ` (backtick, above Tab)
+- **Mac**: `Ctrl + ` `or`Cmd + J`
+- Quickly toggle the terminal panel show/hide
 
-### 方法 3: 命令面板 🎯
-1. 按 `Ctrl + Shift + P`（Mac: `Cmd + Shift + P`）
-2. 输入 "Terminal" 或 "终端"
-3. 选择 `Terminal: Create New Terminal`
+### Method 2: Via menu 📋
 
-### 方法 4: 底部面板按钮 🔘
-- 点击 Cursor 底部状态栏的 `Terminal` 图标
-- 或者点击 `Problems`、`Output` 等标签旁边的小图标
+1. Click the top menu bar
+2. Select `Terminal` → `New Terminal`
+3. Or select `View` → `Terminal`
 
-## 🔍 查看不同类型的输出
+### Method 3: Command palette 🎯
 
-### 1. Python 脚本输出
+1. Press `Ctrl + Shift + P` (Mac: `Cmd + Shift + P`)
+2. Type "Terminal"
+3. Select `Terminal: Create New Terminal`
+
+### Method 4: Bottom panel button 🔘
+
+- Click the `Terminal` icon in Cursor's bottom status bar
+- Or click the small icon next to tabs like `Problems` and `Output`
+
+## 🔍 Viewing different types of output
+
+### 1. Python script output
+
 ```bash
-# 在终端中运行
+# Run in the terminal
 python scripts/python/buy_solana_up_down.py
 
-# 或使用 python3
+# Or use python3
 python3 scripts/python/buy_solana_up_down.py
 ```
 
-### 2. 日志文件输出
+### 2. Log file output
+
 ```bash
-# 查看实时日志（如果脚本正在运行）
+# View live logs (if the script is running)
 tail -f admin/logs/batch_trade_*.log
 
-# 查看最新日志
+# View latest logs
 ls -lt admin/logs/ | head -5
-cat admin/logs/batch_trade_最新文件名.log
+cat admin/logs/batch_trade_<latest_filename>.log
 ```
 
-### 3. 服务输出（Admin 后台）
-- Admin 后台运行在 `http://localhost:8888`
-- 日志会输出到终端，你可以看到：
-  - 启动信息
-  - API 请求日志
-  - 错误信息
+### 3. Service output (Admin backend)
 
-### 4. 调试输出（Debug Console）
-- 按 `F5` 启动调试
-- 输出会显示在 "Debug Console" 面板
+- Admin backend runs at `http://localhost:8888`
+- Logs are printed to the terminal; you can see:
+  - startup info
+  - API request logs
+  - error messages
 
-## 📊 终端面板布局
+### 4. Debug output (Debug Console)
 
-终端打开后，你会看到：
+- Press `F5` to start debugging
+- Output will appear in the "Debug Console" panel
+
+## 📊 Terminal panel layout
+
+After opening the terminal, you will see something like:
 
 ```
 ┌─────────────────────────────────────┐
@@ -65,140 +73,148 @@ cat admin/logs/batch_trade_最新文件名.log
 │  /home/ericl/source_code/...        │
 │                                      │
 │  $ python script.py                  │
-│  [脚本输出内容]                      │
+│  [script output]                     │
 │                                      │
 │  ┌────────────────────────────────┐ │
-│  │ >                               │ │ ← 命令输入区
+│  │ >                               │ │ ← command input area
 │  └────────────────────────────────┘ │
 └─────────────────────────────────────┘
 ```
 
-## 🎯 实用技巧
+## 🎯 Tips
 
-### 技巧 1: 分割终端
-- 点击终端右上角的 `+` 按钮
-- 或按 `Ctrl + Shift + ` ` 创建新终端
-- 可以同时运行多个命令
+### Tip 1: Split terminal
 
-### 技巧 2: 清除终端
-- 输入 `clear` 命令
-- 或按 `Ctrl + L`
+- Click the `+` button in the top-right of the terminal
+- Or press `Ctrl + Shift + ` ` to create a new terminal
+- You can run multiple commands simultaneously
 
-### 技巧 3: 查找输出内容
-- 在终端中按 `Ctrl + F`
-- 可以搜索之前的输出内容
+### Tip 2: Clear terminal
 
-### 技巧 4: 滚动查看历史
-- 使用鼠标滚轮
-- 或使用终端滚动条
+- Run the `clear` command
+- Or press `Ctrl + L`
 
-### 技巧 5: 复制终端内容
-- 选中文本，自动复制
-- 或右键选择 "Copy"
+### Tip 3: Search output
 
-## 📝 查看项目日志
+- Press `Ctrl + F` in the terminal
+- Search through previous output
 
-### Admin 后台日志
+### Tip 4: Scroll history
+
+- Use the mouse wheel
+- Or the terminal scroll bar
+
+### Tip 5: Copy terminal content
+
+- Select text to copy
+- Or right-click and choose "Copy"
+
+## 📝 Viewing project logs
+
+### Admin backend logs
+
 ```bash
-# 查看所有日志文件
+# List all log files
 ls -la admin/logs/
 
-# 实时查看最新日志
+# Tail latest logs
 tail -f admin/logs/batch_trade_*.log
 ```
 
-### 监控日志
+### Monitor logs
+
 ```bash
-# 查看监控日志
+# View monitor log
 cat scripts/python/monitor.log
 
-# 实时查看（如果监控正在运行）
+# Tail live (if monitor is running)
 tail -f scripts/python/monitor.log
 ```
 
-## 🔧 运行测试脚本
+## 🔧 Running test scripts
 
-### 测试 Solana 市场查找
+### Test Solana market search
+
 ```bash
-# 进入项目目录
+# Go to project directory
 cd /home/ericl/source_code/workspace_python/polymarket_agents
 
-# 运行测试脚本（需要激活虚拟环境）
+# Run test scripts (activate venv first)
 source venv/bin/activate  # Linux/Mac
-# 或
+# Or
 .\venv\Scripts\activate   # Windows
 
-# 运行脚本
+# Run script
 python scripts/python/buy_solana_up_down.py
 ```
 
-### 启动 Admin 后台
+### Start Admin backend
+
 ```bash
 cd admin
 ./start.sh
 
-# 或者
+# Or
 python start.py
 ```
 
-## ⚠️ 常见问题
+## ⚠️ FAQ
 
-### Q: 终端没有显示输出？
-- 检查脚本是否真的在运行
-- 检查脚本是否有 `print()` 语句
-- 尝试添加 `flush=True` 到 print 语句
+### Q: The terminal shows no output?
 
-### Q: 如何查看之前的输出？
-- 使用终端滚动条向上滚动
-- 终端会保存所有历史输出
+- Check whether the script is actually running
+- Check whether the script has `print()` statements
+- Try adding `flush=True` to `print()`
 
-### Q: 输出太多，如何过滤？
+### Q: How do I view previous output?
+
+- Scroll up using the terminal scroll bar
+- The terminal keeps output history
+
+### Q: Too much output—how do I filter?
+
 ```bash
-# 使用 grep 过滤
-python script.py | grep "错误"
+# Filter with grep
+python script.py | grep "error"
 python script.py | grep -i "success"
 ```
 
-### Q: 如何保存输出到文件？
+### Q: How do I save output to a file?
+
 ```bash
-# 保存所有输出
+# Save all output
 python script.py > output.txt 2>&1
 
-# 同时显示和保存
+# Show and save at the same time
 python script.py | tee output.txt
 ```
 
-## 🎨 终端美化
+## 🎨 Terminal styling
 
-### 使用彩色输出
+### Colored output
+
 ```python
-# 在 Python 脚本中使用颜色
-print("\033[92m✅ 成功\033[0m")  # 绿色
-print("\033[91m❌ 失败\033[0m")  # 红色
-print("\033[93m⚠️  警告\033[0m")  # 黄色
+# Use colors in Python scripts
+print("\033[92m✅ Success\033[0m")  # green
+print("\033[91m❌ Failure\033[0m")  # red
+print("\033[93m⚠️  Warning\033[0m")  # yellow
 ```
 
-## 📚 相关快捷键
+## 📚 Related shortcuts
 
-- `Ctrl + ``: 切换终端显示/隐藏
-- `Ctrl + Shift + ``: 创建新终端
-- `Ctrl + L`: 清除终端
-- `Ctrl + F`: 搜索终端内容
-- `Ctrl + C`: 中断当前命令
-- `Ctrl + D`: 关闭当前终端
+- `Ctrl + ``: Toggle terminal show/hide
+- `Ctrl + Shift + ``: Create new terminal
+- `Ctrl + L`: Clear terminal
+- `Ctrl + F`: Search terminal output
+- `Ctrl + C`: Interrupt current command
+- `Ctrl + D`: Close current terminal
 
-## 💡 推荐设置
+## 💡 Recommended settings
 
-1. **自动保存终端历史**: 在设置中启用
-2. **增加终端字体大小**: 设置 → Terminal → Font Size
-3. **启用终端自动滚动**: 默认已启用
+1. **Persist terminal history**: enable in settings
+2. **Increase terminal font size**: Settings → Terminal → Font Size
+3. **Enable auto-scroll**: enabled by default
 
 ---
 
-希望这个指南能帮助你更好地使用 Cursor 的终端功能！
-
-
-
-
-
-
+Hope this guide helps you use Cursor's terminal features more effectively!
