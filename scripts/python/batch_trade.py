@@ -210,7 +210,7 @@ def execute_batch_trades(
     try:
         from agents.application.executor import Executor
 
-        if os.getenv("OPENAI_API_KEY"):
+        if os.getenv("OPENROUTER_API_KEY"):
             executor = Executor()
     except Exception:
         executor = None

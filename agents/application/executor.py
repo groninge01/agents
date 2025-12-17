@@ -29,15 +29,35 @@ def retain_keys(data, keys_to_retain):
         return data
 
 class Executor:
-    def __init__(self, default_model='gpt-3.5-turbo-16k') -> None:
+    def __init__(self, default_model='nvidia/nemotron-nano-12b-v2-vl:free') -> None:
         load_dotenv()
-        max_token_model = {'gpt-3.5-turbo-16k':15000, 'gpt-4-1106-preview':95000}
+        max_token_model = {'nvidia/nemotron-nano-12b-v2-vl:free':128000}
         self.token_limit = max_token_model.get(default_model)
         self.prompter = Prompter()
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError("OPENROUTER_API_KEY must be set")
+        base_url = os.getenv("OPENROUTER_BASE_URL")
+        if base_url is None:
+            base_url = "https://openrouter.ai/api/v1"
+
+        default_headers = None
+        http_referer = os.getenv("OPENROUTER_HTTP_REFERER")
+        app_title = os.getenv("OPENROUTER_APP_TITLE")
+        if http_referer or app_title:
+            default_headers = {}
+            if http_referer:
+                default_headers["HTTP-Referer"] = http_referer
+            if app_title:
+                default_headers["X-Title"] = app_title
+
+        self.openrouter_api_key = api_key
         self.llm = ChatOpenAI(
             model=default_model, #gpt-3.5-turbo"
             temperature=0,
+            api_key=api_key,
+            base_url=base_url,
+            default_headers=default_headers,
         )
         self.gamma = Gamma()
         self.chroma = Chroma()
@@ -77,19 +97,19 @@ class Executor:
     def divide_list(self, original_list, i):
         # Calculate the size of each sublist
         sublist_size = math.ceil(len(original_list) / i)
-        
+
         # Use list comprehension to create sublists
         return [original_list[j:j+sublist_size] for j in range(0, len(original_list), sublist_size)]
-    
+
     def get_polymarket_llm(self, user_input: str) -> str:
         data1 = self.gamma.get_current_events()
         data2 = self.gamma.get_current_markets()
-        
+
         combined_data = str(self.prompter.prompts_polymarket(data1=data1, data2=data2))
-        
+
         # Estimate total tokens
         total_tokens = self.estimate_tokens(combined_data)
-        
+
         # Set a token limit (adjust as needed, leaving room for system and user messages)
         token_limit = self.token_limit
         if total_tokens <= token_limit:
@@ -116,11 +136,11 @@ class Executor:
 
                 result = self.process_data_chunk(sub_data1, sub_data2, user_input)
                 results.append(result)
-            
+
             combined_result = " ".join(results)
-            
-        
-            
+
+
+
             return combined_result
     def filter_events(self, events: "list[SimpleEvent]") -> str:
         prompt = self.prompter.filter_events(events)

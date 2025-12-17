@@ -1,10 +1,10 @@
 <!-- PROJECT SHIELDS -->
+
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-
 
 <!-- PROJECT LOGO -->
 <br />
@@ -29,8 +29,8 @@
   </p>
 </div>
 
-
 <!-- CONTENT -->
+
 # Polymarket Agents
 
 Polymarket Agents is a developer framework and set of utilities for building AI agents for Polymarket.
@@ -94,7 +94,7 @@ This repo is inteded for use with Python 3.9
 
    ```
    POLYGON_WALLET_PRIVATE_KEY=""
-   OPENAI_API_KEY=""
+   OPENROUTER_API_KEY=""
    ```
 
 6. Load your wallet with USDC.
@@ -105,7 +105,7 @@ This repo is inteded for use with Python 3.9
    python scripts/python/cli.py
    ```
 
-   Or just go trade! 
+   Or just go trade!
 
    ```
    python agents/application/trade.py
@@ -155,9 +155,9 @@ Example:
 `get-all-markets`
 Retrieve and display a list of markets from Polymarket, sorted by volume.
 
-   ```
-   python scripts/python/cli.py get-all-markets --limit <LIMIT> --sort-by <SORT_BY>
-   ```
+```
+python scripts/python/cli.py get-all-markets --limit <LIMIT> --sort-by <SORT_BY>
+```
 
 - limit: The number of markets to retrieve (default: 5).
 - sort_by: The sorting criterion, either volume (default) or another valid attribute.
@@ -173,9 +173,9 @@ If you would like to contribute to this project, please follow these steps:
 
 Please run pre-commit hooks before making contributions. To initialize them:
 
-   ```
-   pre-commit install
-   ```
+```
+pre-commit install
+```
 
 # Related Repos
 
@@ -205,8 +205,8 @@ Enjoy using the CLI application! If you encounter any issues, feel free to open 
 
 [Terms of Service](https://polymarket.com/tos) prohibit US persons and persons from certain other jurisdictions from trading on Polymarket (via UI & API and including agents developed by persons in restricted jurisdictions), although data and information is viewable globally.
 
-
 <!-- LINKS -->
+
 [contributors-shield]: https://img.shields.io/github/contributors/polymarket/agents?style=for-the-badge
 [contributors-url]: https://github.com/polymarket/agents/graphs/contributors
 [forks-shield]: https://img.shields.io/github/forks/polymarket/agents?style=for-the-badge

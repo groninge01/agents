@@ -16,6 +16,31 @@ class PolymarketRAG:
         self.local_db_directory = local_db_directory
         self.embedding_function = embedding_function
 
+    def _embedding_function(self) -> OpenAIEmbeddings:
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError("OPENROUTER_API_KEY must be set")
+        base_url = os.getenv("OPENROUTER_BASE_URL")
+        if base_url is None:
+            base_url = "https://openrouter.ai/api/v1"
+
+        default_headers = None
+        http_referer = os.getenv("OPENROUTER_HTTP_REFERER")
+        app_title = os.getenv("OPENROUTER_APP_TITLE")
+        if http_referer or app_title:
+            default_headers = {}
+            if http_referer:
+                default_headers["HTTP-Referer"] = http_referer
+            if app_title:
+                default_headers["X-Title"] = app_title
+
+        return OpenAIEmbeddings(
+            model="baai/bge-base-en-v1.5",
+            api_key=api_key,
+            base_url=base_url,
+            default_headers=default_headers,
+        )
+
     def load_json_from_local(
         self, json_file_path=None, vector_db_directory="./local_db"
     ) -> None:
@@ -24,7 +49,7 @@ class PolymarketRAG:
         )
         loaded_docs = loader.load()
 
-        embedding_function = OpenAIEmbeddings(model="text-embedding-3-small")
+        embedding_function = self._embedding_function()
         Chroma.from_documents(
             loaded_docs, embedding_function, persist_directory=vector_db_directory
         )
@@ -47,7 +72,7 @@ class PolymarketRAG:
     def query_local_markets_rag(
         self, local_directory=None, query=None
     ) -> "list[tuple]":
-        embedding_function = OpenAIEmbeddings(model="text-embedding-3-small")
+        embedding_function = self._embedding_function()
         local_db = Chroma(
             persist_directory=local_directory, embedding_function=embedding_function
         )
@@ -80,7 +105,7 @@ class PolymarketRAG:
             metadata_func=metadata_func,
         )
         loaded_docs = loader.load()
-        embedding_function = OpenAIEmbeddings(model="text-embedding-3-small")
+        embedding_function = self._embedding_function()
         vector_db_directory = f"{local_events_directory}/chroma"
         local_db = Chroma.from_documents(
             loaded_docs, embedding_function, persist_directory=vector_db_directory
@@ -117,7 +142,7 @@ class PolymarketRAG:
             metadata_func=metadata_func,
         )
         loaded_docs = loader.load()
-        embedding_function = OpenAIEmbeddings(model="text-embedding-3-small")
+        embedding_function = self._embedding_function()
         vector_db_directory = f"{local_events_directory}/chroma"
         local_db = Chroma.from_documents(
             loaded_docs, embedding_function, persist_directory=vector_db_directory
