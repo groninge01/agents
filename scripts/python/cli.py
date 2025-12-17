@@ -1,5 +1,12 @@
+import os
+import sys
 import typer
 from devtools import pprint
+
+# Add project root to Python path so `python3 scripts/python/cli.py ...` works
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, PROJECT_ROOT)
+os.environ.setdefault("PYTHONPATH", PROJECT_ROOT)
 
 from agents.polymarket.polymarket import Polymarket
 from agents.connectors.chroma import PolymarketRAG
