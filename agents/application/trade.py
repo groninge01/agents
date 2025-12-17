@@ -55,7 +55,7 @@ class Trader:
             # 1. Fetch a large set of active markets
             print()
             print("📊 Step 1: Fetch active markets...")
-            markets = self.gamma.get_all_current_markets(limit=100)
+            markets = self.gamma.get_all_current_markets(limit=500)
             print(f"   Found {len(markets)} active markets")
 
             # 2. Pre-filter by liquidity
